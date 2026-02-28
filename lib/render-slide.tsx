@@ -22,6 +22,17 @@ function getLocalInterFont(): SatoriFontEntry | null {
 
 export const SLIDE_WIDTH = 1080;
 
+/**
+ * The canvas editor renders the preview at max-w-[380px] with scale=1.
+ * All font sizes and measurements in the store are authored at this width.
+ * We multiply by this factor to maintain visual proportionality at 1080px.
+ */
+const DESIGN_WIDTH = 380;
+const DESIGN_SCALE = SLIDE_WIDTH / DESIGN_WIDTH; // ≈ 2.842
+
+/** Editor uses px-6 (24px) padding. Scale to Satori canvas. */
+const SATORI_PADDING = Math.round(24 * DESIGN_SCALE); // ≈ 68px
+
 export function getSlideHeight(aspectRatio: string): number {
   if (aspectRatio === "1:1") return SLIDE_WIDTH;
   if (aspectRatio === "9:16") return Math.round(SLIDE_WIDTH * (16 / 9));
@@ -115,14 +126,15 @@ export async function renderSlideToPng(slide: Slide): Promise<ArrayBuffer> {
                 display: "flex",
                 flexDirection: "column",
                 alignItems: alignMap[textAlign] ?? "center",
-                padding: "0 64px",
+                  padding: `0 ${SATORI_PADDING}px`,
               }}
             >
               {el.text.split("\n").map((line: string, li: number) => (
                 <span
                   key={li}
                   style={{
-                    fontSize: el.fontSize ?? 16,
+                    // Scale font size from design-width (380px) to Satori canvas (1080px)
+                    fontSize: Math.round((el.fontSize ?? 16) * DESIGN_SCALE),
                     fontWeight: fontWeightNum(el.fontWeight),
                     fontFamily: el.fontFamily ?? "Inter",
                     color: el.color ?? "#ffffff",
