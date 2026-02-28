@@ -71,10 +71,16 @@ export function ElementControls() {
   const slide = slides.find((s) => s.id === selectedSlideId);
   const element = slide?.elements.find((el) => el.id === selectedElementId);
 
-  const update = (patch: Partial<TextElement>) => {
+  // Local text state prevents focus-loss on each keystroke
+  const [localText, setLocalText] = useState(element?.text ?? "");
+  useEffect(() => {
+    setLocalText(element?.text ?? "");
+  }, [element?.id]); // only sync when element SELECTION changes, not on every text update
+
+  const update = useCallback((patch: Partial<TextElement>) => {
     if (!selectedSlideId || !selectedElementId) return;
     updateElement(selectedSlideId, selectedElementId, patch);
-  };
+  }, [selectedSlideId, selectedElementId, updateElement]);
 
   return (
     <div className="flex flex-col h-full">
@@ -114,8 +120,11 @@ export function ElementControls() {
             <div>
               <p className="text-[10px] text-white/30 mb-2">Text</p>
               <textarea
-                value={element.text}
-                onChange={(e) => update({ text: e.target.value })}
+                value={localText}
+                onChange={(e) => {
+                  setLocalText(e.target.value);
+                  update({ text: e.target.value });
+                }}
                 rows={3}
                 className="w-full rounded-xl border text-xs text-white/80 placeholder-white/20 p-2.5 resize-none focus:outline-none focus:ring-1 focus:ring-[#7c6af7]/50"
                 style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)" }}
