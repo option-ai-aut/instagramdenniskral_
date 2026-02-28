@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef } from "react";
+import { LockIcon } from "lucide-react";
 import { type Slide, type TextElement } from "@/store/canvasStore";
 import { cn } from "@/lib/utils";
 
@@ -116,6 +117,16 @@ function ElementRenderer({
       >
         {element.text}
       </p>
+
+      {/* Lock indicator – only visible in interactive (editor) mode */}
+      {onSelect && element.locked && (
+        <div
+          className="absolute top-1/2 -translate-y-1/2 right-1 opacity-50 pointer-events-none"
+          style={{ fontSize: `${8 * scale}px` }}
+        >
+          <LockIcon size={Math.max(8, 10 * scale)} className="text-[#60a5fa]" />
+        </div>
+      )}
     </div>
   );
 }

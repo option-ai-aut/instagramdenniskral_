@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Trash2Icon, PlusIcon, ChevronDownIcon, TypeIcon } from "lucide-react";
+import { Trash2Icon, PlusIcon, ChevronDownIcon, TypeIcon, LockIcon, LockOpenIcon } from "lucide-react";
 import { useCanvasStore, type TextElement } from "@/store/canvasStore";
 import { DISPLAY_FONTS, BODY_FONTS } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
@@ -356,6 +356,44 @@ export function ElementControls() {
                 ))}
               </div>
             </div>
+
+            {/* Lock toggle */}
+            <button
+              onClick={() => update({ locked: !element.locked })}
+              className={cn(
+                "w-full flex items-center justify-between gap-2 py-2.5 px-3 rounded-xl text-xs border transition-all",
+                element.locked
+                  ? "border-[#1d4ed8]/40 bg-[#1d4ed8]/10 text-[#60a5fa]"
+                  : "border-white/[0.08] text-white/40 hover:border-white/20 hover:text-white/60"
+              )}
+            >
+              <div className="flex items-center gap-2">
+                {element.locked
+                  ? <LockIcon size={12} />
+                  : <LockOpenIcon size={12} />}
+                <span>{element.locked ? "Fixiert – API-geschützt" : "Fixieren (API-Schutz)"}</span>
+              </div>
+              {/* toggle pill */}
+              <div
+                className={cn(
+                  "w-8 h-4 rounded-full transition-all flex-shrink-0 relative",
+                  element.locked ? "bg-[#1d4ed8]" : "bg-white/10"
+                )}
+              >
+                <div
+                  className={cn(
+                    "absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all",
+                    element.locked ? "left-[18px]" : "left-0.5"
+                  )}
+                />
+              </div>
+            </button>
+
+            {element.locked && (
+              <p className="text-[10px] text-white/25 text-center -mt-2 px-2">
+                Dieser Text bleibt fix – Openclaw kann ihn nicht überschreiben.
+              </p>
+            )}
 
             {/* Delete element */}
             <button

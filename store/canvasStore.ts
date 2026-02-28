@@ -15,6 +15,8 @@ export type TextElement = {
   align: TextAlign;
   x: number;
   y: number;
+  /** When true the element is fixed/anchored – Openclaw textOverrides cannot change it */
+  locked?: boolean;
 };
 
 export type SlideBackground = {

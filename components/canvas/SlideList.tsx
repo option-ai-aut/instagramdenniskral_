@@ -10,42 +10,54 @@ export function SlideList() {
   const { slides, selectedSlideId, selectSlide, addSlide, removeSlide, duplicateSlide, reorderSlides } =
     useCanvasStore();
 
-  const dragIndexRef = useRef<number | null>(null);
+  // Track which index is being dragged (state so JSX reacts to it)
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
 
+  // Suppress the onClick that fires right after a drag completes
+  const didDragRef = useRef(false);
+
   const handleDragStart = (e: React.DragEvent, idx: number) => {
-    dragIndexRef.current = idx;
+    didDragRef.current = false;
+    setDragIndex(idx);
     e.dataTransfer.effectAllowed = "move";
-    // Transparent drag image so the slide thumbnail stays visible
-    const ghost = document.createElement("div");
-    ghost.style.position = "fixed";
-    ghost.style.top = "-9999px";
-    document.body.appendChild(ghost);
-    e.dataTransfer.setDragImage(ghost, 0, 0);
-    setTimeout(() => document.body.removeChild(ghost), 0);
+    e.dataTransfer.setData("text/plain", String(idx));
   };
 
   const handleDragOver = (e: React.DragEvent, idx: number) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-    if (dragIndexRef.current !== null && dragIndexRef.current !== idx) {
+    if (dragIndex !== null && dragIndex !== idx) {
       setDragOver(idx);
     }
   };
 
+  const handleDragLeave = () => {
+    setDragOver(null);
+  };
+
   const handleDrop = (e: React.DragEvent, toIdx: number) => {
     e.preventDefault();
-    const fromIdx = dragIndexRef.current;
-    if (fromIdx !== null && fromIdx !== toIdx) {
+    const fromIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
+    if (!isNaN(fromIdx) && fromIdx !== toIdx) {
       reorderSlides(fromIdx, toIdx);
+      didDragRef.current = true;
     }
-    dragIndexRef.current = null;
+    setDragIndex(null);
     setDragOver(null);
   };
 
   const handleDragEnd = () => {
-    dragIndexRef.current = null;
+    setDragIndex(null);
     setDragOver(null);
+  };
+
+  const handleClick = (id: string) => {
+    if (didDragRef.current) {
+      didDragRef.current = false;
+      return;
+    }
+    selectSlide(id);
   };
 
   return (
@@ -73,18 +85,19 @@ export function SlideList() {
             draggable
             onDragStart={(e) => handleDragStart(e, idx)}
             onDragOver={(e) => handleDragOver(e, idx)}
+            onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, idx)}
             onDragEnd={handleDragEnd}
+            onClick={() => handleClick(slide.id)}
             className={cn(
-              "group relative rounded-xl overflow-hidden cursor-pointer border transition-all duration-150",
-              selectedSlideId === slide.id
-                ? "border-[#1d4ed8]/50 ring-1 ring-[#1d4ed8]/20"
-                : "border-white/[0.06] hover:border-white/[0.12]",
-              dragOver === idx && dragIndexRef.current !== idx
-                ? "ring-2 ring-[#1d4ed8] border-[#1d4ed8]/80 scale-[1.02]"
-                : ""
+              "group relative rounded-xl overflow-hidden cursor-pointer border transition-all duration-150 select-none",
+              dragIndex === idx && "opacity-40 scale-[0.97]",
+              dragOver === idx
+                ? "ring-2 ring-[#1d4ed8] border-[#1d4ed8]/60"
+                : selectedSlideId === slide.id
+                  ? "border-[#1d4ed8]/50 ring-1 ring-[#1d4ed8]/20"
+                  : "border-white/[0.06] hover:border-white/[0.12]"
             )}
-            onClick={() => selectSlide(slide.id)}
           >
             <div className="w-full scale-preview">
               <SlidePreview slide={slide} scale={0.3} />
@@ -95,8 +108,8 @@ export function SlideList() {
               <span className="text-[8px] text-white/60">{idx + 1}</span>
             </div>
 
-            {/* Drag handle – always visible, subtle */}
-            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-60 transition-opacity cursor-grab active:cursor-grabbing">
+            {/* Drag handle */}
+            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-50 transition-opacity cursor-grab active:cursor-grabbing">
               <GripVerticalIcon size={12} className="text-white rotate-90" />
             </div>
 

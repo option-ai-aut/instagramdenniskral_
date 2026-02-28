@@ -82,7 +82,10 @@ function describeSlide(slide: Slide, index: number) {
       fontSize: el.fontSize,
       position_y_percent: el.y,
       align: el.align,
-      note: `Override with textOverrides: { slideIndex: ${index}, elementType: "${el.type}", text: "..." }`,
+      locked: el.locked ?? false,
+      note: el.locked
+        ? `LOCKED – this element is anchored and cannot be changed via textOverrides.`
+        : `Override with textOverrides: { slideIndex: ${index}, elementType: "${el.type}", text: "..." }`,
     })),
   };
 }

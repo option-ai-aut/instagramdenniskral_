@@ -167,7 +167,8 @@ export async function POST(req: NextRequest) {
           ...slide,
           elements: (slide.elements as TextElement[]).map((el) => {
             const override = slideOverrides.find((o) => o.elementType === el.type);
-            return override ? { ...el, text: override.text.slice(0, 500) } : el;
+                // Locked elements are anchored – textOverrides cannot change them
+                return (override && !el.locked) ? { ...el, text: override.text.slice(0, 500) } : el;
           }),
         };
       });
