@@ -30,10 +30,19 @@ export async function POST(req: NextRequest) {
 
   await ensureUser();
 
-  const { title, slidesJson, thumbUrl } = await req.json();
+  const body = await req.json().catch(() => ({}));
+  const { slidesJson, thumbUrl } = body;
+  const title =
+    typeof body.title === "string" && body.title.length <= 200
+      ? body.title
+      : "Neues Karussell";
+
+  if (!slidesJson) {
+    return NextResponse.json({ error: "slidesJson is required" }, { status: 400 });
+  }
 
   const carousel = await prisma.carousel.create({
-    data: { userId: SYSTEM_USER_ID, title: title ?? "Neues Karussell", slidesJson, thumbUrl },
+    data: { userId: SYSTEM_USER_ID, title, slidesJson, thumbUrl },
   });
 
   return NextResponse.json({ carousel });

@@ -3,6 +3,19 @@ import { NextRequest, NextResponse } from "next/server";
 const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/logout"];
 const AUTH_COOKIE = "app_auth";
 
+/** Constant-time string comparison to prevent timing attacks (Edge-runtime compatible). */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  const encoder = new TextEncoder();
+  const bufA = encoder.encode(a);
+  const bufB = encoder.encode(b);
+  let diff = 0;
+  for (let i = 0; i < bufA.length; i++) {
+    diff |= bufA[i] ^ bufB[i];
+  }
+  return diff === 0;
+}
+
 export default function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -11,7 +24,9 @@ export default function proxy(request: NextRequest) {
   }
 
   const cookie = request.cookies.get(AUTH_COOKIE);
-  if (cookie?.value === process.env.APP_PASSWORD_HASH) {
+  const expected = process.env.APP_PASSWORD_HASH ?? "";
+
+  if (cookie?.value && expected && timingSafeEqual(cookie.value, expected)) {
     return NextResponse.next();
   }
 

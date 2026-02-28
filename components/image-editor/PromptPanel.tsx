@@ -1,8 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { SparklesIcon, SendHorizonal, LoaderIcon, DownloadIcon, MaximizeIcon, RefreshCwIcon, XIcon, CheckCircleIcon } from "lucide-react";
+import {
+  SparklesIcon,
+  LoaderIcon,
+  DownloadIcon,
+  MaximizeIcon,
+  RefreshCwIcon,
+  XIcon,
+  CheckCircleIcon,
+  BookmarkIcon,
+  BookmarkCheckIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { downloadDataUrl } from "@/lib/utils";
 import { useImageEditorStore } from "@/store/imageEditorStore";
@@ -11,20 +21,77 @@ type Props = {
   onGenerate: (id: string) => Promise<void>;
   onGenerateAll: () => Promise<void>;
   isGeneratingAll: boolean;
+  onPromptsChange?: (count: number) => void;
 };
 
-const PROMPT_SUGGESTIONS = [
-  "Luxury car photography, cinematic lighting, dark background",
-  "Premium lifestyle edit, warm golden tones, film grain",
-  "Entrepreneur aesthetic, clean modern office, soft light",
-  "High-end fashion photo, dramatic shadows, black and white",
-  "Motivational post, bold contrast, moody atmosphere",
-];
+type SavedPrompt = { id: string; text: string; createdAt: string };
 
-export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll }: Props) {
+export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onPromptsChange }: Props) {
   const { images, selectedId, setPrompt, updateImage, useResultAsBase } = useImageEditorStore();
   const selected = images.find((img) => img.id === selectedId);
   const [lightbox, setLightbox] = useState(false);
+
+  const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const fetchPrompts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/prompts");
+      if (res.ok) {
+        const { prompts } = await res.json();
+        const list = prompts ?? [];
+        setSavedPrompts(list);
+        onPromptsChange?.(list.length);
+      }
+    } catch {
+      // silent – non-critical
+    }
+  }, [onPromptsChange]);
+
+  useEffect(() => {
+    fetchPrompts();
+  }, [fetchPrompts]);
+
+  const handleSavePrompt = async () => {
+    if (!selected?.prompt.trim() || saving) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/prompts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: selected.prompt.trim() }),
+      });
+      if (res.ok) {
+        const { prompt } = await res.json();
+        setSavedPrompts((prev) => {
+          const updated = [prompt, ...prev];
+          onPromptsChange?.(updated.length);
+          return updated;
+        });
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 2000);
+      }
+    } catch {
+      // silent
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeletePrompt = async (id: string) => {
+    setSavedPrompts((prev) => {
+      const updated = prev.filter((p) => p.id !== id);
+      onPromptsChange?.(updated.length);
+      return updated;
+    });
+    try {
+      await fetch(`/api/prompts/${id}`, { method: "DELETE" });
+    } catch {
+      // re-fetch on error
+      fetchPrompts();
+    }
+  };
 
   if (!selected) {
     return (
@@ -46,6 +113,10 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll }: Prop
   const handleDownload = () => {
     downloadDataUrl(selected.resultDataUrl!, `denniskral_${selected.id}.png`);
   };
+
+  const isAlreadySaved = savedPrompts.some(
+    (p) => p.text.trim() === selected.prompt.trim()
+  );
 
   return (
     <>
@@ -72,7 +143,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll }: Prop
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-          {/* Preview — shows result if available, otherwise original */}
+          {/* Preview */}
           <div className="relative">
             <div
               className={cn(
@@ -90,7 +161,6 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll }: Prop
                 unoptimized
               />
 
-              {/* Processing overlay */}
               {isProcessing && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 backdrop-blur-sm">
                   <LoaderIcon size={28} className="text-[#a78bfa] animate-spin" />
@@ -98,7 +168,6 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll }: Prop
                 </div>
               )}
 
-              {/* Tag: KI Ergebnis */}
               {hasResult && !isProcessing && (
                 <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-[#7c6af7]/80 backdrop-blur-sm text-white border border-[#a78bfa]/30">
                   <CheckCircleIcon size={10} />
@@ -106,7 +175,6 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll }: Prop
                 </div>
               )}
 
-              {/* Zoom hint */}
               {hasResult && !isProcessing && (
                 <div className="absolute top-2 right-2 opacity-0 hover:opacity-100 transition-opacity">
                   <div className="w-7 h-7 rounded-lg bg-black/60 border border-white/10 flex items-center justify-center">
@@ -116,7 +184,6 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll }: Prop
               )}
             </div>
 
-            {/* Result actions below preview */}
             {hasResult && !isProcessing && (
               <div className="mt-2 flex gap-2">
                 <button
@@ -143,7 +210,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll }: Prop
             )}
           </div>
 
-          {/* Prompt input */}
+          {/* Prompt input + save */}
           <div>
             <label className="text-[11px] text-white/40 mb-2 block">Dein Prompt</label>
             <textarea
@@ -151,31 +218,81 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll }: Prop
               onChange={(e) => setPrompt(selected.id, e.target.value)}
               placeholder="Beschreibe wie das Bild bearbeitet werden soll..."
               rows={3}
+              maxLength={2000}
               className="w-full rounded-xl border text-sm text-white/80 placeholder-white/20 p-3 resize-none focus:outline-none focus:ring-1 focus:ring-[#7c6af7]/50 transition-colors"
               style={{
                 background: "rgba(255,255,255,0.04)",
                 borderColor: "rgba(255,255,255,0.08)",
               }}
             />
+            <div className="mt-2 flex items-center justify-between">
+              <span className="text-[10px] text-white/20">
+                {selected.prompt.length}/2000
+              </span>
+              <button
+                onClick={handleSavePrompt}
+                disabled={saving || !selected.prompt.trim() || isAlreadySaved}
+                className={cn(
+                  "flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-lg font-medium transition-all border",
+                  saveSuccess
+                    ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                    : isAlreadySaved
+                    ? "border-white/10 text-white/25 cursor-default"
+                    : "border-[#7c6af7]/30 text-[#a78bfa] hover:bg-[#7c6af7]/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                )}
+              >
+                {saving ? (
+                  <LoaderIcon size={11} className="animate-spin" />
+                ) : saveSuccess ? (
+                  <BookmarkCheckIcon size={11} />
+                ) : (
+                  <BookmarkIcon size={11} />
+                )}
+                {saveSuccess ? "Gespeichert!" : isAlreadySaved ? "Bereits gespeichert" : "Prompt speichern"}
+              </button>
+            </div>
           </div>
 
-          {/* Suggestions */}
+          {/* Saved prompts */}
           <div>
-            <p className="text-[10px] text-white/25 mb-2">Vorschläge für @denniskral_</p>
-            <div className="space-y-1.5">
-              {PROMPT_SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => {
-                    setPrompt(selected.id, s);
-                    updateImage(selected.id, { prompt: s });
-                  }}
-                  className="w-full text-left text-[11px] text-white/40 hover:text-white/70 px-3 py-2 rounded-lg border border-transparent hover:border-white/[0.08] hover:bg-white/[0.03] transition-all"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+            <p className="text-[10px] text-white/25 mb-2">
+              Gespeicherte Prompts
+              {savedPrompts.length > 0 && (
+                <span className="ml-1.5 text-[#7c6af7]/60">({savedPrompts.length})</span>
+              )}
+            </p>
+            {savedPrompts.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-white/[0.08] p-4 text-center">
+                <p className="text-[11px] text-white/25 leading-relaxed">
+                  Noch keine Prompts gespeichert. Gespeicherte Prompts werden von der KI analysiert,
+                  um zukünftig automatisch den passenden Stil für deine Bilder zu wählen.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {savedPrompts.map((p) => (
+                  <div
+                    key={p.id}
+                    className="group flex items-start gap-2 w-full text-left text-[11px] text-white/40 hover:text-white/70 px-3 py-2 rounded-lg border border-transparent hover:border-white/[0.08] hover:bg-white/[0.03] transition-all cursor-pointer"
+                    onClick={() => {
+                      setPrompt(selected.id, p.text);
+                      updateImage(selected.id, { prompt: p.text });
+                    }}
+                  >
+                    <span className="flex-1 leading-relaxed">{p.text}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeletePrompt(p.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 flex-shrink-0 mt-0.5 text-white/30 hover:text-red-400 transition-all"
+                    >
+                      <XIcon size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
