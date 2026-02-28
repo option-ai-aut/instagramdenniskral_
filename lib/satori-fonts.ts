@@ -30,13 +30,11 @@ export async function fetchGoogleFont(
   if (cache.has(key)) return cache.get(key)!;
 
   try {
-    const cssUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@${weight}&display=swap`;
+    // Use CSS v1 API with a simple (non-modern) User-Agent so Google returns
+    // TTF/OTF font files. Modern User-Agents get woff2 which Satori cannot parse.
+    const cssUrl = `https://fonts.googleapis.com/css?family=${encodeURIComponent(family)}:${weight}&display=swap`;
     const cssRes = await fetch(cssUrl, {
-      headers: {
-        // Request a modern User-Agent to get woff2 URLs
-        "User-Agent":
-          "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      },
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1)" },
     });
     if (!cssRes.ok) return null;
     const css = await cssRes.text();

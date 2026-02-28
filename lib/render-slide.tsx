@@ -1,10 +1,24 @@
 /**
  * Shared server-side slide renderer (Satori / next/og).
- * Works on both Edge and Node runtimes.
+ * Node runtime only (uses fs for fallback font).
  */
+import fs from "fs";
+import path from "path";
 import { ImageResponse } from "next/og";
 import type { Slide, TextElement } from "@/store/canvasStore";
-import { collectSatoriFonts } from "./satori-fonts";
+import { collectSatoriFonts, type SatoriFontEntry } from "./satori-fonts";
+
+/** Load the bundled Inter TTF from /public/fonts as a guaranteed fallback. */
+function getLocalInterFont(): SatoriFontEntry | null {
+  try {
+    const fontPath = path.join(process.cwd(), "public", "fonts", "Inter-Regular.ttf");
+    const buf = fs.readFileSync(fontPath);
+    const data = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+    return { name: "Inter", data, weight: 400, style: "normal" };
+  } catch {
+    return null;
+  }
+}
 
 export const SLIDE_WIDTH = 1080;
 
@@ -41,7 +55,31 @@ export async function renderSlideToPng(slide: Slide): Promise<ArrayBuffer> {
   const H = getSlideHeight(slide.aspectRatio ?? "4:5");
   const bgStyle = buildBgStyle(slide);
   const elements = (slide.elements ?? []) as TextElement[];
-  const fonts = await collectSatoriFonts(elements);
+
+  // Load Google Fonts (best-effort); guarantee at least Inter from local disk
+  let fonts: SatoriFontEntry[] = [];
+  try {
+    fonts = await collectSatoriFonts(elements);
+  } catch {
+    // Font fetch failed – will use local fallback below
+  }
+
+  // Always ensure at least one font is available
+  if (fonts.length === 0) {
+    const fallback = getLocalInterFont();
+    if (fallback) fonts = [fallback];
+  } else {
+    // Ensure Inter is present as fallback even when custom fonts loaded
+    const hasInter = fonts.some((f) => f.name === "Inter");
+    if (!hasInter) {
+      const fallback = getLocalInterFont();
+      if (fallback) fonts = [...fonts, fallback];
+    }
+  }
+
+  if (fonts.length === 0) {
+    throw new Error("No fonts available for rendering");
+  }
 
   const response = new ImageResponse(
     (
