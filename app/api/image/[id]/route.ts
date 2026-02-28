@@ -23,7 +23,8 @@ export async function DELETE(
       .eq("id", id)
       .single();
 
-    if (!item || (item as { Session: { userId: string } }).Session?.userId !== SYSTEM_USER_ID) {
+    const typedItem = item as unknown as { Session: { userId: string } } | null;
+    if (!typedItem || typedItem.Session?.userId !== SYSTEM_USER_ID) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
