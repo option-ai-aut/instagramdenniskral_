@@ -227,7 +227,7 @@ curl -H "Authorization: Bearer YOUR_KEY" \\
     {
       "slideIndex": 0,
       "aspectRatio": "4:5",
-      "background": "dark purple gradient",
+      "background": "dark black gradient",
       "elements": [
         {
           "type": "tag",
@@ -329,30 +329,43 @@ curl -H "Authorization: Bearer YOUR_KEY" \\
           </div>
         </Section>
 
-        {/* Download PNG */}
-        <Section id="png" title="Slides als PNG herunterladen" icon={ImageIcon}>
+        {/* Download ZIP – empfohlen */}
+        <Section id="zip" title="Alle Slides als ZIP herunterladen (empfohlen)" icon={ImageIcon}>
+          <div className="flex items-center gap-2">
+            <MethodBadge method="GET" />
+            <code className="text-[13px] font-mono text-white/70">/api/openclaw/carousels/:id/slides/zip</code>
+          </div>
+          <p className="text-[13px] text-white/50">
+            Rendert <strong className="text-white/70">alle Slides</strong> eines Karussells auf einmal und gibt sie als ZIP-Archiv zurück.
+            Enthält <code className="text-[#60a5fa]">slide-1.png</code>, <code className="text-[#60a5fa]">slide-2.png</code>, etc.
+            Kein separates API-Key erforderlich – die Karussell-ID ist nicht erratbar.
+          </p>
+          <div className="rounded-xl border border-[#34d399]/20 bg-[#34d399]/5 px-4 py-3">
+            <p className="text-[11px] text-[#34d399]/80">
+              ✅ Dies ist der empfohlene Weg um alle Slides zu bekommen – ein Request, ein ZIP.
+            </p>
+          </div>
+          <CodeBlock lang="bash" code={`curl -H "Authorization: Bearer YOUR_KEY" \\
+  -o carousel.zip \\
+  "${BASE_URL}/api/openclaw/carousels/YOUR_CAROUSEL_ID/slides/zip"`} />
+          <ParamTable params={[
+            { name: ":id", type: "string", req: true, desc: "Karussell-ID aus der POST-Response (carouselId)" },
+          ]} />
+        </Section>
+
+        {/* Download einzelner PNG */}
+        <Section id="png" title="Einzelnen Slide als PNG herunterladen" icon={ImageIcon}>
           <div className="flex items-center gap-2">
             <MethodBadge method="GET" />
             <code className="text-[13px] font-mono text-white/70">/api/openclaw/carousels/:id/slides/:index/image.png</code>
           </div>
           <p className="text-[13px] text-white/50">
             Rendert einen einzelnen Slide als PNG-Datei (1080×1350px für 4:5, 1080×1080px für 1:1, 1080×1920px für 9:16).
-            Kein Browser notwendig – Rendering passiert serverseitig via Satori/next/og.
-            <br /><br />
-            Die URLs kommen direkt aus der POST-Response (<code className="text-[#60a5fa]">slideImageUrls[]</code>).
-            Kein eigener API-Key nötig für den Download – die Karussell-ID ist nicht erratbar.
+            Für Einzelabrufe oder Vorschauen. Für den vollständigen Download lieber den ZIP-Endpoint nutzen.
           </p>
           <CodeBlock lang="bash" code={`# Slide 1 herunterladen (Index 0)
 curl -o slide-1.png \\
-  "${BASE_URL}/api/openclaw/carousels/YOUR_CAROUSEL_ID/slides/0/image.png"
-
-# Alle Slides eines Karussells herunterladen (Bash-Beispiel)
-CAROUSEL_ID="abc123def456"
-for i in 0 1 2; do
-  curl -o "slide-$((i+1)).png" \\
-    "${BASE_URL}/api/openclaw/carousels/$CAROUSEL_ID/slides/$i/image.png"
-done`} />
-
+  "${BASE_URL}/api/openclaw/carousels/YOUR_CAROUSEL_ID/slides/0/image.png"`} />
           <ParamTable params={[
             { name: ":id",    type: "string", req: true, desc: "Karussell-ID aus der POST-Response" },
             { name: ":index", type: "number", req: true, desc: "0-basierter Slide-Index. 0 = erster Slide, 1 = zweiter Slide, ..." },
@@ -394,10 +407,10 @@ done`} />
           <ol className="space-y-3">
             {[
               { n: "1", title: "Templates laden", code: `GET /api/openclaw/templates` },
-              { n: "2", title: "Template-Struktur verstehen", code: `GET /api/openclaw/templates/progress` },
+              { n: "2", title: "Template-Struktur verstehen (Elemente, Positionen, locked-Status)", code: `GET /api/openclaw/templates/progress` },
               { n: "3", title: "Karussell erstellen & Texte befüllen", code: `POST /api/openclaw/carousels\n{ templateId, title, textOverrides }` },
-              { n: "4", title: "PNG-Bilder herunterladen", code: `GET /api/openclaw/carousels/:id/slides/0/image.png\nGET /api/openclaw/carousels/:id/slides/1/image.png` },
-              { n: "5", title: "(Optional) Im Editor öffnen", code: `Öffne viewUrl: /canvas?load=:id` },
+              { n: "4", title: "Alle Slides als ZIP herunterladen", code: `GET /api/openclaw/carousels/:carouselId/slides/zip` },
+              { n: "5", title: "(Optional) Im Editor öffnen oder einzelne PNGs abrufen", code: `viewUrl: /canvas?load=:id\n/api/openclaw/carousels/:id/slides/0/image.png` },
             ].map((step) => (
               <li key={step.n} className="flex gap-3">
                 <span className="w-6 h-6 rounded-full bg-[#1d4ed8]/20 border border-[#1d4ed8]/30 flex items-center justify-center text-[11px] text-[#60a5fa] font-bold flex-shrink-0 mt-0.5">
@@ -410,7 +423,52 @@ done`} />
               </li>
             ))}
           </ol>
+
+          <CodeBlock lang="bash" code={`# Vollständiges Beispiel in 2 Requests:
+
+# 1. Karussell erstellen
+RESP=$(curl -s -X POST ${BASE_URL}/api/openclaw/carousels \\
+  -H "Authorization: Bearer YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"templateId":"progress","title":"KW 9 Update","textOverrides":[
+    {"slideIndex":0,"elementType":"header","text":"Insta Builder ist live"},
+    {"slideIndex":0,"elementType":"subtitle","text":"3 Wochen Entwicklung\\nheute deployed."}
+  ]}')
+
+CAROUSEL_ID=$(echo $RESP | python3 -c "import sys,json; print(json.load(sys.stdin)['carouselId'])")
+
+# 2. Alle Slides als ZIP herunterladen
+curl -H "Authorization: Bearer YOUR_KEY" \\
+  -o carousel.zip \\
+  "${BASE_URL}/api/openclaw/carousels/$CAROUSEL_ID/slides/zip"`} />
         </Section>
+
+        {/* Locked Elements */}
+        <Section id="locked" title="Fixierte Elemente (locked)" icon={LockIcon}>
+          <p className="text-[13px] text-white/50 leading-relaxed">
+            Elemente können im Canvas-Editor als <strong className="text-white/70">fixiert</strong> markiert werden (z.B. Fußzeile mit @handle).
+            Fixierte Elemente erscheinen in der Template-Struktur mit <code className="text-[#60a5fa]">&quot;locked&quot;: true</code>
+            und werden von <code className="text-[#60a5fa]">textOverrides</code> <strong className="text-white/70">nicht verändert</strong> – ihr Text bleibt immer wie im Template definiert.
+          </p>
+          <CodeBlock lang="json" code={`// GET /api/openclaw/templates/progress – Response (Ausschnitt)
+{
+  "slides": [{
+    "elements": [
+      {
+        "type": "body",
+        "defaultText": "@denniskral_",
+        "locked": true,
+        "note": "LOCKED – this element is anchored and cannot be changed via textOverrides."
+      },
+      {
+        "type": "header",
+        "defaultText": "Was ich diese Woche gebaut habe",
+        "locked": false,
+        "note": "Override with textOverrides: { slideIndex: 0, elementType: \\"header\\", text: \\"...\\" }"
+      }
+    ]
+  }]
+}`} /></Section>
 
         {/* Element Types */}
         <Section id="element-types" title="Textelement-Typen" icon={LayoutIcon}>
