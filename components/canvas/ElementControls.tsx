@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import { Trash2Icon, PlusIcon } from "lucide-react";
 import { useCanvasStore, type TextElement } from "@/store/canvasStore";
 import { cn } from "@/lib/utils";
@@ -18,8 +19,55 @@ const FONT_WEIGHTS: Array<{ value: TextElement["fontWeight"]; label: string }> =
   { value: "extrabold", label: "Extra Bold" },
 ];
 
+/**
+ * Smooth range slider that keeps local state while dragging
+ * and only commits to the store on pointer-up.
+ */
+function RangeSlider({
+  min,
+  max,
+  value,
+  onCommit,
+}: {
+  min: number;
+  max: number;
+  value: number;
+  onCommit: (v: number) => void;
+}) {
+  const [local, setLocal] = useState(value);
+
+  // Sync when the element selection changes (external value change)
+  useEffect(() => {
+    setLocal(value);
+  }, [value]);
+
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocal(Number(e.target.value));
+  }, []);
+
+  const handleCommit = useCallback((e: React.PointerEvent<HTMLInputElement>) => {
+    onCommit(Number((e.target as HTMLInputElement).value));
+  }, [onCommit]);
+
+  return (
+    <input
+      type="range"
+      min={min}
+      max={max}
+      value={local}
+      onChange={handleChange}
+      onPointerUp={handleCommit}
+      className="w-full accent-[#7c6af7]"
+    />
+  );
+}
+
 export function ElementControls() {
-  const { slides, selectedSlideId, selectedElementId, updateElement, removeElement, addElement, selectElement } = useCanvasStore();
+  const {
+    slides, selectedSlideId, selectedElementId,
+    updateElement, removeElement, addElement, selectElement,
+  } = useCanvasStore();
+
   const slide = slides.find((s) => s.id === selectedSlideId);
   const element = slide?.elements.find((el) => el.id === selectedElementId);
 
@@ -80,13 +128,11 @@ export function ElementControls() {
                 <p className="text-[10px] text-white/30">Schriftgröße</p>
                 <span className="text-[10px] text-white/50">{element.fontSize}px</span>
               </div>
-              <input
-                type="range"
+              <RangeSlider
                 min={8}
                 max={72}
                 value={element.fontSize}
-                onChange={(e) => update({ fontSize: Number(e.target.value) })}
-                className="w-full accent-[#7c6af7]"
+                onCommit={(v) => update({ fontSize: v })}
               />
             </div>
 
@@ -138,13 +184,11 @@ export function ElementControls() {
                 <p className="text-[10px] text-white/30">Position (vertikal)</p>
                 <span className="text-[10px] text-white/50">{element.y}%</span>
               </div>
-              <input
-                type="range"
+              <RangeSlider
                 min={5}
                 max={95}
                 value={element.y}
-                onChange={(e) => update({ y: Number(e.target.value) })}
-                className="w-full accent-[#7c6af7]"
+                onCommit={(v) => update({ y: v })}
               />
             </div>
 
