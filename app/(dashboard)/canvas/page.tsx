@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { toPng } from "html-to-image";
 import { DownloadIcon, SaveIcon, LoaderIcon, CheckIcon, BookmarkIcon, LayoutTemplateIcon } from "lucide-react";
@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 type MobileView = "preview" | "slides" | "controls";
 
-export default function CanvasPage() {
+function CanvasInner() {
   const searchParams = useSearchParams();
   const {
     slides, selectedSlideId, selectedElementId, carouselTitle, savedCarouselId,
@@ -325,5 +325,13 @@ export default function CanvasPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CanvasPage() {
+  return (
+    <Suspense fallback={<div className="flex h-full items-center justify-center"><div className="w-6 h-6 rounded-full border-2 border-[#7c6af7]/30 border-t-[#7c6af7] animate-spin" /></div>}>
+      <CanvasInner />
+    </Suspense>
   );
 }

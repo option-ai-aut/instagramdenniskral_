@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { timingSafeEqual, createHash } from "crypto";
+import { timingSafeEqual } from "crypto";
 
 /** Constant-time string comparison using Node.js crypto. */
 function safeEqual(a: string, b: string): boolean {
@@ -22,11 +22,6 @@ export async function requireAuth(): Promise<void> {
   if (!token || !expected || !safeEqual(token, expected)) {
     throw new Response("Unauthorized", { status: 401 });
   }
-}
-
-/** Derive a consistent hash for storage – used for carousel thumbnail paths etc. */
-export function hashId(input: string): string {
-  return createHash("sha256").update(input).digest("hex").slice(0, 12);
 }
 
 export const SYSTEM_USER_ID = "denniskral";
