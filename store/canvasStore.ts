@@ -44,10 +44,10 @@ const TEMPLATES: Template[] = [
     slides: [
       {
         id: nanoid(),
-        background: { type: "gradient", gradient: "linear-gradient(135deg, #0a0a0f 0%, #1a1224 100%)" },
+        background: { type: "gradient", gradient: "linear-gradient(135deg, #0a0a0f 0%, #111118 100%)" },
         aspectRatio: "4:5",
         elements: [
-          { id: nanoid(), type: "tag", text: "BUILD IN PUBLIC", fontSize: 11, fontWeight: "semibold", fontFamily: "Montserrat", color: "#a78bfa", align: "center", x: 50, y: 15 },
+          { id: nanoid(), type: "tag", text: "BUILD IN PUBLIC", fontSize: 11, fontWeight: "semibold", fontFamily: "Montserrat", color: "#60a5fa", align: "center", x: 50, y: 15 },
           { id: nanoid(), type: "header", text: "Was ich diese Woche gebaut habe", fontSize: 32, fontWeight: "extrabold", fontFamily: "Playfair Display", color: "#ffffff", align: "center", x: 50, y: 40 },
           { id: nanoid(), type: "subtitle", text: "Von 0 auf 1.000 Nutzer in 30 Tagen", fontSize: 16, fontWeight: "normal", fontFamily: "Inter", color: "rgba(255,255,255,0.6)", align: "center", x: 50, y: 62 },
           { id: nanoid(), type: "body", text: "@denniskral_", fontSize: 12, fontWeight: "medium", fontFamily: "Inter", color: "rgba(255,255,255,0.3)", align: "center", x: 50, y: 88 },
@@ -94,7 +94,7 @@ const TEMPLATES: Template[] = [
 function makeDefaultSlide(): Slide {
   return {
     id: nanoid(),
-    background: { type: "gradient", gradient: "linear-gradient(135deg, #0a0a0f 0%, #1a1224 100%)" },
+    background: { type: "gradient", gradient: "linear-gradient(135deg, #0a0a0f 0%, #111118 100%)" },
     aspectRatio: "4:5",
     elements: [
       { id: nanoid(), type: "header", text: "Dein Titel", fontSize: 32, fontWeight: "extrabold", fontFamily: "Playfair Display", color: "#ffffff", align: "center", x: 50, y: 40 },
@@ -189,7 +189,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         header:   { fontSize: 30, fontWeight: "extrabold", fontFamily: "Playfair Display", color: "#ffffff" },
         subtitle: { fontSize: 16, fontWeight: "normal",    fontFamily: "Inter",            color: "rgba(255,255,255,0.6)" },
         body:     { fontSize: 13, fontWeight: "normal",    fontFamily: "Inter",            color: "rgba(255,255,255,0.45)" },
-        tag:      { fontSize: 11, fontWeight: "semibold",  fontFamily: "Montserrat",       color: "#a78bfa" },
+        tag:      { fontSize: 11, fontWeight: "semibold",  fontFamily: "Montserrat",       color: "#60a5fa" },
       };
       const el: TextElement = {
         id: nanoid(),

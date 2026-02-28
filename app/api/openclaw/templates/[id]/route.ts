@@ -25,7 +25,7 @@ const BUILTIN_TEMPLATES: Record<string, {
       {
         slideIndex: 0,
         aspectRatio: "4:5",
-        background: "dark purple gradient",
+        background: "dark black gradient",
         elements: [
           { type: "tag",      defaultText: "BUILD IN PUBLIC", fontSize: 11, position_y_percent: 15, align: "center", note: "Short label, caps recommended. E.g. 'WEEK 3 UPDATE'" },
           { type: "header",   defaultText: "Was ich diese Woche gebaut habe", fontSize: 32, position_y_percent: 40, align: "center", note: "Main headline. Keep it concise, 5-10 words." },

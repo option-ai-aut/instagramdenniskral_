@@ -15,7 +15,7 @@ export default function ApiDocsLayout({ children }: { children: React.ReactNode 
       >
         <div
           className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
-          style={{ background: "linear-gradient(135deg,#7c6af7,#a78bfa)" }}
+          style={{ background: "linear-gradient(135deg,#1d4ed8,#60a5fa)" }}
         >
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />

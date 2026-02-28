@@ -192,7 +192,7 @@ function CanvasInner() {
 
   return (
     <div className="flex flex-col h-full bg-grid">
-      <div className="absolute inset-0 bg-gradient-to-br from-[#7c6af7]/[0.03] via-transparent to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[#1d4ed8]/[0.03] via-transparent to-transparent pointer-events-none" />
 
       {/* Toolbar */}
       <div
@@ -207,7 +207,7 @@ function CanvasInner() {
         />
 
         {savedCarouselId && (
-          <span className="hidden sm:flex text-[10px] px-2 py-0.5 rounded-full bg-[#7c6af7]/15 text-[#a78bfa]/70 border border-[#7c6af7]/20 items-center gap-1 flex-shrink-0">
+          <span className="hidden sm:flex text-[10px] px-2 py-0.5 rounded-full bg-[#1d4ed8]/15 text-[#60a5fa]/70 border border-[#1d4ed8]/20 items-center gap-1 flex-shrink-0">
             <BookmarkIcon size={9} />
             Gespeichert
           </span>
@@ -237,7 +237,7 @@ function CanvasInner() {
             "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border flex-shrink-0",
             saved
               ? "border-[#34d399]/30 bg-[#34d399]/10 text-[#34d399]"
-              : "border-[#7c6af7]/30 text-[#a78bfa] hover:bg-[#7c6af7]/10"
+              : "border-[#1d4ed8]/30 text-[#60a5fa] hover:bg-[#1d4ed8]/10"
           )}
         >
           {saving ? <LoaderIcon size={12} className="animate-spin" /> : saved ? <CheckIcon size={12} /> : <SaveIcon size={12} />}
@@ -255,7 +255,7 @@ function CanvasInner() {
           {selectedSlide ? (
             <div
               className="w-full max-w-[380px] rounded-2xl overflow-hidden shadow-2xl"
-              style={{ boxShadow: "0 0 60px rgba(124,106,247,0.15), 0 0 0 1px rgba(255,255,255,0.05)" }}
+              style={{ boxShadow: "0 0 60px rgba(29, 78, 216,0.15), 0 0 0 1px rgba(255,255,255,0.05)" }}
             >
               <SlidePreview
                 ref={slideRef}
@@ -292,7 +292,7 @@ function CanvasInner() {
               onClick={() => setMobileView(v.id)}
               className={cn(
                 "flex-1 py-2.5 text-[11px] font-medium transition-colors border-b-2",
-                mobileView === v.id ? "text-[#a78bfa] border-[#7c6af7]" : "text-white/30 border-transparent"
+                mobileView === v.id ? "text-[#60a5fa] border-[#1d4ed8]" : "text-white/30 border-transparent"
               )}
             >
               {v.label}
@@ -306,7 +306,7 @@ function CanvasInner() {
               {selectedSlide ? (
                 <div
                   className="w-full max-w-[340px] rounded-2xl overflow-hidden shadow-2xl"
-                  style={{ boxShadow: "0 0 40px rgba(124,106,247,0.2), 0 0 0 1px rgba(255,255,255,0.05)" }}
+                  style={{ boxShadow: "0 0 40px rgba(29, 78, 216,0.2), 0 0 0 1px rgba(255,255,255,0.05)" }}
                 >
                   <SlidePreview
                     ref={slideRef}
@@ -336,7 +336,7 @@ function CanvasInner() {
 
 export default function CanvasPage() {
   return (
-    <Suspense fallback={<div className="flex h-full items-center justify-center"><div className="w-6 h-6 rounded-full border-2 border-[#7c6af7]/30 border-t-[#7c6af7] animate-spin" /></div>}>
+    <Suspense fallback={<div className="flex h-full items-center justify-center"><div className="w-6 h-6 rounded-full border-2 border-[#1d4ed8]/30 border-t-[#1d4ed8] animate-spin" /></div>}>
       <CanvasInner />
     </Suspense>
   );

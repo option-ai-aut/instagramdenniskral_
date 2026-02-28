@@ -88,7 +88,7 @@ function ElementRenderer({
       className={cn(
         "absolute w-full px-6 transition-all",
         onSelect && "cursor-pointer",
-        selected && "outline outline-1 outline-[#7c6af7]/60 outline-offset-1 rounded"
+        selected && "outline outline-1 outline-[#1d4ed8]/60 outline-offset-1 rounded"
       )}
       style={{
         top: `${element.y}%`,

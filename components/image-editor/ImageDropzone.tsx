@@ -53,12 +53,12 @@ export function ImageDropzone() {
       className={cn(
         "border border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all duration-200 text-center",
         isDragActive
-          ? "border-[#7c6af7] bg-[#7c6af7]/10"
+          ? "border-[#1d4ed8] bg-[#1d4ed8]/10"
           : "border-white/10 hover:border-white/20 hover:bg-white/[0.02]"
       )}
     >
       <input {...getInputProps()} />
-      <UploadCloudIcon size={20} className={cn(isDragActive ? "text-[#a78bfa]" : "text-white/20")} />
+      <UploadCloudIcon size={20} className={cn(isDragActive ? "text-[#60a5fa]" : "text-white/20")} />
       <p className="text-[11px] text-white/30 leading-relaxed">
         {isDragActive ? "Loslassen zum Hinzufügen" : `Bilder hinzufügen (${remaining} verfügbar)`}
       </p>

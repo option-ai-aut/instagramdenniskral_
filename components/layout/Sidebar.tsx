@@ -31,7 +31,7 @@ export function Sidebar() {
         <div className="flex items-center gap-2.5">
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "linear-gradient(135deg, #7c6af7, #a78bfa)" }}
+            style={{ background: "linear-gradient(135deg, #1d4ed8, #60a5fa)" }}
           >
             <ZapIcon size={14} className="text-white" />
           </div>
@@ -55,7 +55,7 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group",
                 active
-                  ? "bg-[#7c6af7]/15 border border-[#7c6af7]/20"
+                  ? "bg-[#1d4ed8]/15 border border-[#1d4ed8]/20"
                   : "hover:bg-white/[0.04] border border-transparent"
               )}
             >
@@ -63,7 +63,7 @@ export function Sidebar() {
                 size={16}
                 className={cn(
                   "flex-shrink-0 transition-colors",
-                  active ? "text-[#a78bfa]" : "text-white/30 group-hover:text-white/60"
+                  active ? "text-[#60a5fa]" : "text-white/30 group-hover:text-white/60"
                 )}
               />
               <div className="min-w-0">

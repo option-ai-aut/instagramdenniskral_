@@ -8,8 +8,8 @@
   --border-hover: rgba(255, 255, 255, 0.16);
   --text-primary: #f0f0f5;
   --text-secondary: rgba(240, 240, 245, 0.5);
-  --accent: #7c6af7;
-  --accent-glow: rgba(124, 106, 247, 0.3);
+  --accent: #1d4ed8;
+  --accent-glow: rgba(29, 78, 216, 0.3);
   --glass-bg: rgba(17, 17, 24, 0.7);
   --glass-border: rgba(255, 255, 255, 0.06);
 }
@@ -76,7 +76,7 @@ body {
 }
 
 .gradient-text-accent {
-  background: linear-gradient(135deg, #7c6af7 0%, #a78bfa 100%);
+  background: linear-gradient(135deg, #1d4ed8 0%, #60a5fa 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

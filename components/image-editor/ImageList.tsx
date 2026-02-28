@@ -105,7 +105,7 @@ function DesktopImageCard({ img, index, selected, onSelect, onRemove }: {
       className={cn(
         "group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-200 border",
         selected
-          ? "border-[#7c6af7]/50 ring-1 ring-[#7c6af7]/30"
+          ? "border-[#1d4ed8]/50 ring-1 ring-[#1d4ed8]/30"
           : "border-white/[0.06] hover:border-white/[0.12]"
       )}
     >
@@ -113,7 +113,7 @@ function DesktopImageCard({ img, index, selected, onSelect, onRemove }: {
         <Image src={img.originalDataUrl} alt={`Image ${index + 1}`} fill className="object-cover" sizes="200px" unoptimized />
         {img.status === "processing" && (
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-            <div className="w-5 h-5 border-2 border-[#7c6af7] border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-[#1d4ed8] border-t-transparent rounded-full animate-spin" />
           </div>
         )}
         {img.status === "done" && img.resultDataUrl && (
@@ -149,7 +149,7 @@ function MobileImageCard({ img, index, selected, onSelect, onRemove }: {
       className={cn(
         "group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-200 border active:scale-[0.96]",
         selected
-          ? "border-[#7c6af7]/60 ring-2 ring-[#7c6af7]/30"
+          ? "border-[#1d4ed8]/60 ring-2 ring-[#1d4ed8]/30"
           : "border-white/[0.08]"
       )}
     >
@@ -158,7 +158,7 @@ function MobileImageCard({ img, index, selected, onSelect, onRemove }: {
 
         {img.status === "processing" && (
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-            <div className="w-6 h-6 border-2 border-[#7c6af7] border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-[#1d4ed8] border-t-transparent rounded-full animate-spin" />
           </div>
         )}
 

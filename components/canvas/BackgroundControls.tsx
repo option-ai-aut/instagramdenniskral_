@@ -4,12 +4,12 @@ import { useCanvasStore, type SlideBackground } from "@/store/canvasStore";
 import { cn } from "@/lib/utils";
 
 const GRADIENTS = [
-  { label: "Dark Purple", value: "linear-gradient(135deg, #0a0a0f 0%, #1a1224 100%)" },
-  { label: "Dark Blue", value: "linear-gradient(135deg, #0a0a0f 0%, #0f1a24 100%)" },
+  { label: "Dark Black", value: "linear-gradient(135deg, #0a0a0f 0%, #111118 100%)" },
+  { label: "Dark Blue", value: "linear-gradient(135deg, #0a0a0f 0%, #0f1a2e 100%)" },
   { label: "Dark Gold", value: "linear-gradient(160deg, #0a0a0f 0%, #1a1500 60%, #0a0a0f 100%)" },
   { label: "Midnight", value: "linear-gradient(135deg, #050508 0%, #0d0d1a 100%)" },
   { label: "Carbon", value: "linear-gradient(135deg, #111114 0%, #1a1a1e 100%)" },
-  { label: "Purple Blue", value: "linear-gradient(135deg, #1a0a2e 0%, #0a1a2e 100%)" },
+  { label: "Navy Blue", value: "linear-gradient(135deg, #0a0f1a 0%, #0d1a2e 100%)" },
 ];
 
 const SOLID_COLORS = [
@@ -45,7 +45,7 @@ export function BackgroundControls() {
                 className={cn(
                   "flex-1 py-1.5 text-[11px] rounded-lg border transition-all",
                   slide.aspectRatio === ratio
-                    ? "border-[#7c6af7]/40 bg-[#7c6af7]/10 text-[#a78bfa]"
+                    ? "border-[#1d4ed8]/40 bg-[#1d4ed8]/10 text-[#60a5fa]"
                     : "border-white/[0.08] text-white/40 hover:border-white/20"
                 )}
               >
@@ -66,7 +66,7 @@ export function BackgroundControls() {
                 className={cn(
                   "flex-1 py-1.5 text-[11px] rounded-lg border transition-all",
                   slide.background.type === type
-                    ? "border-[#7c6af7]/40 bg-[#7c6af7]/10 text-[#a78bfa]"
+                    ? "border-[#1d4ed8]/40 bg-[#1d4ed8]/10 text-[#60a5fa]"
                     : "border-white/[0.08] text-white/40 hover:border-white/20"
                 )}
               >
@@ -88,7 +88,7 @@ export function BackgroundControls() {
                   className={cn(
                     "h-10 rounded-xl border-2 transition-all",
                     slide.background.gradient === g.value
-                      ? "border-[#7c6af7]"
+                      ? "border-[#1d4ed8]"
                       : "border-transparent hover:border-white/20"
                   )}
                   style={{ background: g.value }}
@@ -110,7 +110,7 @@ export function BackgroundControls() {
                   onClick={() => update({ color: c })}
                   className={cn(
                     "w-8 h-8 rounded-lg border-2 transition-all",
-                    slide.background.color === c ? "border-[#7c6af7] scale-110" : "border-white/10 hover:border-white/30"
+                    slide.background.color === c ? "border-[#1d4ed8] scale-110" : "border-white/10 hover:border-white/30"
                   )}
                   style={{ background: c }}
                 />

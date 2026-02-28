@@ -97,7 +97,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
         <div className="w-16 h-16 rounded-2xl glass flex items-center justify-center">
-          <SparklesIcon size={24} className="text-[#7c6af7]/50" />
+          <SparklesIcon size={24} className="text-[#1d4ed8]/50" />
         </div>
         <p className="text-sm text-white/30 text-center">
           Lade Bilder hoch und wähle eines aus, um zu starten
@@ -130,7 +130,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
             <button
               onClick={onGenerateAll}
               disabled={isGeneratingAll}
-              className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-lg font-medium transition-all border border-[#7c6af7]/30 text-[#a78bfa] hover:bg-[#7c6af7]/10 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-lg font-medium transition-all border border-[#1d4ed8]/30 text-[#60a5fa] hover:bg-[#1d4ed8]/10 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isGeneratingAll ? (
                 <LoaderIcon size={11} className="animate-spin" />
@@ -148,7 +148,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
             <div
               className={cn(
                 "aspect-square rounded-xl overflow-hidden relative border cursor-zoom-in",
-                hasResult ? "border-[#7c6af7]/30" : "border-white/[0.06]"
+                hasResult ? "border-[#1d4ed8]/30" : "border-white/[0.06]"
               )}
               onClick={() => hasResult && setLightbox(true)}
             >
@@ -163,13 +163,13 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
 
               {isProcessing && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 backdrop-blur-sm">
-                  <LoaderIcon size={28} className="text-[#a78bfa] animate-spin" />
+                  <LoaderIcon size={28} className="text-[#60a5fa] animate-spin" />
                   <span className="text-xs text-white/70">Generiert mit Gemini…</span>
                 </div>
               )}
 
               {hasResult && !isProcessing && (
-                <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-[#7c6af7]/80 backdrop-blur-sm text-white border border-[#a78bfa]/30">
+                <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-[#1d4ed8]/80 backdrop-blur-sm text-white border border-[#60a5fa]/30">
                   <CheckCircleIcon size={10} />
                   KI Ergebnis
                 </div>
@@ -188,7 +188,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
               <div className="mt-2 flex gap-2">
                 <button
                   onClick={() => useResultAsBase(selected.id)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-medium border border-[#7c6af7]/25 text-[#a78bfa] hover:bg-[#7c6af7]/10 transition-all"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-medium border border-[#1d4ed8]/25 text-[#60a5fa] hover:bg-[#1d4ed8]/10 transition-all"
                 >
                   <RefreshCwIcon size={11} />
                   Als Original
@@ -219,7 +219,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
               placeholder="Beschreibe wie das Bild bearbeitet werden soll..."
               rows={3}
               maxLength={2000}
-              className="w-full rounded-xl border text-sm text-white/80 placeholder-white/20 p-3 resize-none focus:outline-none focus:ring-1 focus:ring-[#7c6af7]/50 transition-colors"
+              className="w-full rounded-xl border text-sm text-white/80 placeholder-white/20 p-3 resize-none focus:outline-none focus:ring-1 focus:ring-[#1d4ed8]/50 transition-colors"
               style={{
                 background: "rgba(255,255,255,0.04)",
                 borderColor: "rgba(255,255,255,0.08)",
@@ -238,7 +238,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
                     ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
                     : isAlreadySaved
                     ? "border-white/10 text-white/25 cursor-default"
-                    : "border-[#7c6af7]/30 text-[#a78bfa] hover:bg-[#7c6af7]/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                    : "border-[#1d4ed8]/30 text-[#60a5fa] hover:bg-[#1d4ed8]/10 disabled:opacity-40 disabled:cursor-not-allowed"
                 )}
               >
                 {saving ? (
@@ -258,7 +258,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
             <p className="text-[10px] text-white/25 mb-2">
               Gespeicherte Prompts
               {savedPrompts.length > 0 && (
-                <span className="ml-1.5 text-[#7c6af7]/60">({savedPrompts.length})</span>
+                <span className="ml-1.5 text-[#1d4ed8]/60">({savedPrompts.length})</span>
               )}
             </p>
             {savedPrompts.length === 0 ? (
@@ -308,7 +308,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
             )}
             style={
               !isProcessing && selected.prompt.trim()
-                ? { background: "linear-gradient(135deg, #7c6af7, #a78bfa)" }
+                ? { background: "linear-gradient(135deg, #1d4ed8, #60a5fa)" }
                 : {}
             }
           >

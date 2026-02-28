@@ -36,7 +36,7 @@ function CodeBlock({ code, lang = "json" }: { code: string; lang?: string }) {
 function MethodBadge({ method }: { method: string }) {
   const colors: Record<string, string> = {
     GET: "bg-[#34d399]/10 text-[#34d399] border-[#34d399]/20",
-    POST: "bg-[#7c6af7]/10 text-[#a78bfa] border-[#7c6af7]/20",
+    POST: "bg-[#1d4ed8]/10 text-[#60a5fa] border-[#1d4ed8]/20",
     PATCH: "bg-[#fbbf24]/10 text-[#fbbf24] border-[#fbbf24]/20",
     DELETE: "bg-[#f87171]/10 text-[#f87171] border-[#f87171]/20",
   };
@@ -56,7 +56,7 @@ function Section({ id, title, icon: Icon, children }: { id: string; title: strin
         className="w-full flex items-center gap-3 px-5 py-4 hover:bg-white/[0.02] transition-colors"
         style={{ background: "rgba(255,255,255,0.025)" }}
       >
-        <Icon size={15} className="text-[#a78bfa] flex-shrink-0" />
+        <Icon size={15} className="text-[#60a5fa] flex-shrink-0" />
         <span className="text-sm font-semibold text-white flex-1 text-left">{title}</span>
         {open ? <ChevronDownIcon size={14} className="text-white/30" /> : <ChevronRightIcon size={14} className="text-white/30" />}
       </button>
@@ -92,7 +92,7 @@ function ParamTable({ params }: { params: Array<{ name: string; type: string; re
         <tbody>
           {params.map((p) => (
             <tr key={p.name} className="border-t border-white/[0.04]">
-              <td className="px-3 py-2"><code className="text-[#a78bfa] font-mono">{p.name}</code></td>
+              <td className="px-3 py-2"><code className="text-[#60a5fa] font-mono">{p.name}</code></td>
               <td className="px-3 py-2 text-white/40 font-mono">{p.type}</td>
               <td className="px-3 py-2">
                 <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-medium", p.req ? "bg-[#f87171]/10 text-[#f87171]" : "bg-white/5 text-white/30")}>
@@ -116,7 +116,7 @@ export default function ApiDocsPage() {
         {/* Header */}
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg,#7c6af7,#a78bfa)" }}>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg,#1d4ed8,#60a5fa)" }}>
               <ZapIcon size={13} className="text-white" />
             </div>
             <h1 className="text-xl font-bold text-white">Insta Builder – API Docs</h1>
@@ -127,8 +127,8 @@ export default function ApiDocsPage() {
         </div>
 
         {/* Quick reference */}
-        <div className="rounded-2xl border border-white/[0.07] p-4 space-y-1" style={{ background: "rgba(124,106,247,0.05)" }}>
-          <p className="text-[11px] font-semibold text-[#a78bfa] mb-2">Quick Reference</p>
+        <div className="rounded-2xl border border-white/[0.07] p-4 space-y-1" style={{ background: "rgba(29, 78, 216,0.05)" }}>
+          <p className="text-[11px] font-semibold text-[#60a5fa] mb-2">Quick Reference</p>
           <EndpointRow method="GET"  path="/api/openclaw/templates"                        desc="Alle verfügbaren Templates und gespeicherten Karussells auflisten" />
           <EndpointRow method="GET"  path="/api/openclaw/templates/:id"                   desc="Genaue Struktur eines Templates (Slides, Elemente, Positionen)" />
           <EndpointRow method="GET"  path="/api/openclaw/carousels"                       desc="Alle erstellten Karussells mit Download-URLs auflisten" />
@@ -140,8 +140,8 @@ export default function ApiDocsPage() {
         <Section id="auth" title="Authentifizierung" icon={LockIcon}>
           <p className="text-[13px] text-white/50 leading-relaxed">
             Alle Openclaw-Endpoints sind durch einen API-Key gesichert. Der Key wird entweder als{" "}
-            <code className="text-[#a78bfa]">Authorization: Bearer</code> Header oder als{" "}
-            <code className="text-[#a78bfa]">X-API-Key</code> Header mitgeschickt.
+            <code className="text-[#60a5fa]">Authorization: Bearer</code> Header oder als{" "}
+            <code className="text-[#60a5fa]">X-API-Key</code> Header mitgeschickt.
             <br /><br />
             Den aktuellen Key findest du in den Vercel-Umgebungsvariablen: <code className="text-white/60">OPENCLAW_API_KEY</code>
           </p>
@@ -209,7 +209,7 @@ X-API-Key: YOUR_API_KEY`} />
             Gibt die genaue Struktur eines Templates zurück: jeder Slide, jedes Textelement mit Typ, Position und Default-Text.
             Ideal um vor dem POST zu wissen welche Felder befüllt werden sollen.
           </p>
-          <p className="text-[12px] text-white/35 font-medium">Builtin IDs: <code className="text-[#a78bfa]">progress</code> · <code className="text-[#a78bfa]">tip</code> · <code className="text-[#a78bfa]">luxury</code></p>
+          <p className="text-[12px] text-white/35 font-medium">Builtin IDs: <code className="text-[#60a5fa]">progress</code> · <code className="text-[#60a5fa]">tip</code> · <code className="text-[#60a5fa]">luxury</code></p>
           <CodeBlock lang="bash" code={`# Builtin Template abfragen
 curl -H "Authorization: Bearer YOUR_KEY" \\
   ${BASE_URL}/api/openclaw/templates/progress
@@ -319,8 +319,8 @@ curl -H "Authorization: Bearer YOUR_KEY" \\
   ]
 }`} />
 
-          <div className="rounded-xl border border-[#a78bfa]/20 bg-[#7c6af7]/5 px-4 py-3 space-y-1">
-            <p className="text-[11px] font-semibold text-[#a78bfa]">💡 Tipp: Zeilenumbrüche</p>
+          <div className="rounded-xl border border-[#60a5fa]/20 bg-[#1d4ed8]/5 px-4 py-3 space-y-1">
+            <p className="text-[11px] font-semibold text-[#60a5fa]">💡 Tipp: Zeilenumbrüche</p>
             <p className="text-[11px] text-white/40">
               Nutze <code className="text-white/60">\n</code> im JSON-String für Zeilenumbrüche im Text.
               Jede neue Zeile wird im Slide und in der PNG-Datei korrekt gerendert.
@@ -338,7 +338,7 @@ curl -H "Authorization: Bearer YOUR_KEY" \\
             Rendert einen einzelnen Slide als PNG-Datei (1080×1350px für 4:5, 1080×1080px für 1:1, 1080×1920px für 9:16).
             Kein Browser notwendig – Rendering passiert serverseitig via Satori/next/og.
             <br /><br />
-            Die URLs kommen direkt aus der POST-Response (<code className="text-[#a78bfa]">slideImageUrls[]</code>).
+            Die URLs kommen direkt aus der POST-Response (<code className="text-[#60a5fa]">slideImageUrls[]</code>).
             Kein eigener API-Key nötig für den Download – die Karussell-ID ist nicht erratbar.
           </p>
           <CodeBlock lang="bash" code={`# Slide 1 herunterladen (Index 0)
@@ -399,7 +399,7 @@ done`} />
               { n: "5", title: "(Optional) Im Editor öffnen", code: `Öffne viewUrl: /canvas?load=:id` },
             ].map((step) => (
               <li key={step.n} className="flex gap-3">
-                <span className="w-6 h-6 rounded-full bg-[#7c6af7]/20 border border-[#7c6af7]/30 flex items-center justify-center text-[11px] text-[#a78bfa] font-bold flex-shrink-0 mt-0.5">
+                <span className="w-6 h-6 rounded-full bg-[#1d4ed8]/20 border border-[#1d4ed8]/30 flex items-center justify-center text-[11px] text-[#60a5fa] font-bold flex-shrink-0 mt-0.5">
                   {step.n}
                 </span>
                 <div className="flex-1">
@@ -425,7 +425,7 @@ done`} />
               { type: "body",     desc: "Kleiner Text ganz unten, meist der @handle. Selten ändern.", example: "@denniskral_" },
             ].map((el) => (
               <div key={el.type} className="flex items-start gap-3 px-3 py-2.5 rounded-xl border border-white/[0.06]" style={{ background: "rgba(255,255,255,0.02)" }}>
-                <code className="text-[11px] font-mono text-[#a78bfa] w-16 flex-shrink-0 mt-0.5">{el.type}</code>
+                <code className="text-[11px] font-mono text-[#60a5fa] w-16 flex-shrink-0 mt-0.5">{el.type}</code>
                 <div>
                   <p className="text-[11px] text-white/50">{el.desc}</p>
                   <p className="text-[10px] text-white/25 mt-0.5">Beispiel: <span className="text-white/40 font-mono">&quot;{el.example}&quot;</span></p>

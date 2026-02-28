@@ -54,7 +54,7 @@ export default function HistoryPage() {
 
   return (
     <div className="flex flex-col h-full bg-grid overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-[#7c6af7]/[0.03] via-transparent to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[#1d4ed8]/[0.03] via-transparent to-transparent pointer-events-none" />
 
       {/* Header */}
       <div
@@ -76,7 +76,7 @@ export default function HistoryPage() {
               className={cn(
                 "px-3 py-1.5 rounded-lg text-xs font-medium transition-all border whitespace-nowrap",
                 filter === f
-                  ? "border-[#7c6af7]/40 bg-[#7c6af7]/10 text-[#a78bfa]"
+                  ? "border-[#1d4ed8]/40 bg-[#1d4ed8]/10 text-[#60a5fa]"
                   : "border-white/[0.08] text-white/40 hover:border-white/20 hover:text-white/60"
               )}
             >
@@ -97,7 +97,7 @@ export default function HistoryPage() {
             {(filter === "all" || filter === "images") && (
               <div>
                 <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                  <ImageIcon size={14} className="text-[#7c6af7]" />
+                  <ImageIcon size={14} className="text-[#1d4ed8]" />
                   <h2 className="text-sm font-medium text-white/70">
                     KI-Bilder <span className="text-white/30">({allImages.length})</span>
                   </h2>
@@ -121,7 +121,7 @@ export default function HistoryPage() {
             {(filter === "all" || filter === "carousels") && (
               <div>
                 <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                  <LayoutIcon size={14} className="text-[#7c6af7]" />
+                  <LayoutIcon size={14} className="text-[#1d4ed8]" />
                   <h2 className="text-sm font-medium text-white/70">
                     Karussells <span className="text-white/30">({carousels.length})</span>
                   </h2>
@@ -194,13 +194,13 @@ function CarouselHistoryCard({ carousel }: { carousel: CarouselDB }) {
   const slides = Array.isArray(carousel.slidesJson) ? carousel.slidesJson : [];
 
   return (
-    <div className="group relative rounded-xl overflow-hidden border border-white/[0.06] hover:border-[#7c6af7]/30 active:scale-[0.97] transition-all cursor-pointer">
+    <div className="group relative rounded-xl overflow-hidden border border-white/[0.06] hover:border-[#1d4ed8]/30 active:scale-[0.97] transition-all cursor-pointer">
       <div
         className="aspect-[4/5] flex items-center justify-center"
         style={{ background: "linear-gradient(135deg, #111118, #1a1a24)" }}
       >
         <div className="text-center px-4">
-          <LayoutIcon size={20} className="text-[#7c6af7]/40 mx-auto mb-2" />
+          <LayoutIcon size={20} className="text-[#1d4ed8]/40 mx-auto mb-2" />
           <p className="text-xs text-white/40">{slides.length} Slides</p>
         </div>
       </div>

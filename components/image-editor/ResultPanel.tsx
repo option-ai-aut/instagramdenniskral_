@@ -47,7 +47,7 @@ export function ResultPanel() {
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {/* Result image */}
           <div
-            className="aspect-square rounded-xl overflow-hidden relative border border-[#7c6af7]/20 cursor-zoom-in"
+            className="aspect-square rounded-xl overflow-hidden relative border border-[#1d4ed8]/20 cursor-zoom-in"
             onClick={() => setLightbox(true)}
           >
             <Image
@@ -78,7 +78,7 @@ export function ResultPanel() {
         <div className="px-5 py-4 border-t flex-shrink-0 space-y-2" style={{ borderColor: "var(--glass-border)" }}>
           <button
             onClick={() => useResultAsBase(selected.id)}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium border border-[#7c6af7]/25 text-[#a78bfa] hover:bg-[#7c6af7]/10 transition-all"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-medium border border-[#1d4ed8]/25 text-[#60a5fa] hover:bg-[#1d4ed8]/10 transition-all"
           >
             <RefreshCwIcon size={13} />
             Als neues Original verwenden

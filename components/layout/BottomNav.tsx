@@ -44,13 +44,13 @@ export function BottomNav() {
                 size={20}
                 className={cn(
                   "transition-colors",
-                  active ? "text-[#a78bfa]" : "text-white/30"
+                  active ? "text-[#60a5fa]" : "text-white/30"
                 )}
               />
               <span
                 className={cn(
                   "text-[10px] font-medium transition-colors",
-                  active ? "text-[#a78bfa]" : "text-white/30"
+                  active ? "text-[#60a5fa]" : "text-white/30"
                 )}
               >
                 {item.label}

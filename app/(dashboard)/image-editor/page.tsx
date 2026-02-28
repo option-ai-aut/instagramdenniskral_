@@ -200,8 +200,8 @@ export default function ImageEditorPage() {
           !hasImages || hasNoSavedPrompts || isGeneratingAll
             ? "border-white/10 text-white/25 cursor-not-allowed bg-transparent"
             : smartLoading
-            ? "border-[#7c6af7]/30 text-[#a78bfa]/60 cursor-not-allowed"
-            : "border-[#7c6af7]/40 text-[#a78bfa] hover:bg-[#7c6af7]/10 active:scale-[0.98]"
+            ? "border-[#1d4ed8]/30 text-[#60a5fa]/60 cursor-not-allowed"
+            : "border-[#1d4ed8]/40 text-[#60a5fa] hover:bg-[#1d4ed8]/10 active:scale-[0.98]"
         )}
       >
         {smartLoading ? (
@@ -216,7 +216,7 @@ export default function ImageEditorPage() {
           {smartLoading ? "KI…" : "Mit KI"}
         </span>
         {savedPromptsCount !== null && savedPromptsCount > 0 && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#7c6af7]/20 text-[#a78bfa]/80">
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#1d4ed8]/20 text-[#60a5fa]/80">
             {savedPromptsCount} Prompts
           </span>
         )}
@@ -226,7 +226,7 @@ export default function ImageEditorPage() {
 
   return (
     <div className="flex flex-col h-full bg-grid">
-      <div className="absolute inset-0 bg-gradient-to-br from-[#7c6af7]/[0.03] via-transparent to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-[#1d4ed8]/[0.03] via-transparent to-transparent pointer-events-none" />
 
       {/* Top bar with smart generate button */}
       <div
@@ -290,14 +290,14 @@ export default function ImageEditorPage() {
                 className={cn(
                   "flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-all border-b-2 relative",
                   active
-                    ? "text-[#a78bfa] border-[#7c6af7]"
+                    ? "text-[#60a5fa] border-[#1d4ed8]"
                     : "text-white/30 border-transparent"
                 )}
               >
                 <tab.icon size={16} />
                 {tab.label}
                 {badge !== null && (
-                  <span className="absolute top-1.5 right-4 text-[9px] bg-[#7c6af7] text-white rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                  <span className="absolute top-1.5 right-4 text-[9px] bg-[#1d4ed8] text-white rounded-full w-4 h-4 flex items-center justify-center leading-none">
                     {badge}
                   </span>
                 )}

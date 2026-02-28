@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 const COLORS = [
   "#ffffff", "rgba(255,255,255,0.6)", "rgba(255,255,255,0.3)",
-  "#7c6af7", "#a78bfa", "#34d399", "#fbbf24", "#f87171",
+  "#1d4ed8", "#60a5fa", "#34d399", "#fbbf24", "#f87171",
   "#000000",
 ];
 
@@ -59,7 +59,7 @@ function RangeSlider({
       value={local}
       onChange={handleChange}
       onPointerUp={handleCommit}
-      className="w-full accent-[#7c6af7]"
+      className="w-full accent-[#1d4ed8]"
     />
   );
 }
@@ -113,7 +113,7 @@ function FontPicker({
       >
         {/* Display */}
         <div className="px-3 pt-3 pb-1">
-          <p className="text-[9px] font-semibold text-[#a78bfa]/60 uppercase tracking-widest mb-2">
+          <p className="text-[9px] font-semibold text-[#60a5fa]/60 uppercase tracking-widest mb-2">
             ✦ Zierschriften
           </p>
           <div className="space-y-0.5">
@@ -124,7 +124,7 @@ function FontPicker({
                 className={cn(
                   "w-full text-left px-2.5 py-2 rounded-lg transition-all",
                   value === f.family
-                    ? "bg-[#7c6af7]/15 text-white"
+                    ? "bg-[#1d4ed8]/15 text-white"
                     : "text-white/50 hover:bg-white/[0.04] hover:text-white/80"
                 )}
               >
@@ -152,7 +152,7 @@ function FontPicker({
                 className={cn(
                   "w-full text-left px-2.5 py-2 rounded-lg transition-all",
                   value === f.family
-                    ? "bg-[#7c6af7]/15 text-white"
+                    ? "bg-[#1d4ed8]/15 text-white"
                     : "text-white/50 hover:bg-white/[0.04] hover:text-white/80"
                 )}
               >
@@ -255,7 +255,7 @@ export function ElementControls() {
                   update({ text: e.target.value });
                 }}
                 rows={3}
-                className="w-full rounded-xl border text-xs text-white/80 placeholder-white/20 p-2.5 resize-none focus:outline-none focus:ring-1 focus:ring-[#7c6af7]/50"
+                className="w-full rounded-xl border text-xs text-white/80 placeholder-white/20 p-2.5 resize-none focus:outline-none focus:ring-1 focus:ring-[#1d4ed8]/50"
                 style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)" }}
               />
             </div>
@@ -294,7 +294,7 @@ export function ElementControls() {
                     className={cn(
                       "text-[10px] px-2 py-1 rounded-lg border transition-all",
                       element.fontWeight === fw.value
-                        ? "border-[#7c6af7]/40 bg-[#7c6af7]/10 text-[#a78bfa]"
+                        ? "border-[#1d4ed8]/40 bg-[#1d4ed8]/10 text-[#60a5fa]"
                         : "border-white/[0.08] text-white/40 hover:border-white/20"
                     )}
                   >
@@ -315,7 +315,7 @@ export function ElementControls() {
                     className={cn(
                       "flex-1 py-1.5 text-[11px] rounded-lg border transition-all",
                       element.align === align
-                        ? "border-[#7c6af7]/40 bg-[#7c6af7]/10 text-[#a78bfa]"
+                        ? "border-[#1d4ed8]/40 bg-[#1d4ed8]/10 text-[#60a5fa]"
                         : "border-white/[0.08] text-white/40 hover:border-white/20"
                     )}
                   >
@@ -349,7 +349,7 @@ export function ElementControls() {
                     onClick={() => update({ color: c })}
                     className={cn(
                       "w-6 h-6 rounded-full border-2 transition-all",
-                      element.color === c ? "border-[#7c6af7] scale-110" : "border-transparent hover:border-white/20"
+                      element.color === c ? "border-[#1d4ed8] scale-110" : "border-transparent hover:border-white/20"
                     )}
                     style={{ background: c }}
                   />

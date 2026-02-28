@@ -19,7 +19,7 @@ export function SlideList() {
         </p>
         <button
           onClick={addSlide}
-          className="flex items-center gap-1 text-[11px] text-[#a78bfa] hover:text-white transition-colors"
+          className="flex items-center gap-1 text-[11px] text-[#60a5fa] hover:text-white transition-colors"
         >
           <PlusIcon size={12} />
           Neu
@@ -33,7 +33,7 @@ export function SlideList() {
             className={cn(
               "group relative rounded-xl overflow-hidden cursor-pointer border transition-all duration-200",
               selectedSlideId === slide.id
-                ? "border-[#7c6af7]/50 ring-1 ring-[#7c6af7]/20"
+                ? "border-[#1d4ed8]/50 ring-1 ring-[#1d4ed8]/20"
                 : "border-white/[0.06] hover:border-white/[0.12]"
             )}
             onClick={() => selectSlide(slide.id)}
@@ -54,7 +54,7 @@ export function SlideList() {
                   e.stopPropagation();
                   duplicateSlide(slide.id);
                 }}
-                className="w-5 h-5 rounded bg-black/70 border border-white/10 flex items-center justify-center hover:bg-[#7c6af7]/30"
+                className="w-5 h-5 rounded bg-black/70 border border-white/10 flex items-center justify-center hover:bg-[#1d4ed8]/30"
               >
                 <CopyIcon size={9} className="text-white" />
               </button>

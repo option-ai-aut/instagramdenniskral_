@@ -132,7 +132,7 @@ export function InstagramImport({ onImport, disabled }: Props) {
         style={{
           background: "rgba(17,17,24,0.98)",
           borderColor: "rgba(255,255,255,0.09)",
-          boxShadow: "0 0 100px rgba(124,106,247,0.2), 0 0 0 1px rgba(255,255,255,0.05)",
+          boxShadow: "0 0 100px rgba(29, 78, 216,0.2), 0 0 0 1px rgba(255,255,255,0.05)",
           maxHeight: "90vh",
         }}
       >
@@ -177,12 +177,12 @@ export function InstagramImport({ onImport, disabled }: Props) {
                       if (e.key === "Enter" && !loading) handleFetch();
                     }}
                     placeholder="https://www.instagram.com/p/..."
-                    className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-[#7c6af7]/40 transition-colors"
+                    className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-[#1d4ed8]/40 transition-colors"
                   />
                   <button
                     onClick={handleFetch}
                     disabled={loading || !url.trim()}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-white bg-[#7c6af7]/80 hover:bg-[#7c6af7] disabled:opacity-40 transition-all flex-shrink-0"
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-white bg-[#1d4ed8]/80 hover:bg-[#1d4ed8] disabled:opacity-40 transition-all flex-shrink-0"
                   >
                     {loading ? (
                       <LoaderIcon size={14} className="animate-spin" />
@@ -236,7 +236,7 @@ export function InstagramImport({ onImport, disabled }: Props) {
                     <div className="flex gap-2">
                       <button
                         onClick={() => setSelected(new Set(fetched.map((i) => i.index)))}
-                        className="text-[10px] text-[#a78bfa] hover:text-[#c4b5fd] transition-colors"
+                        className="text-[10px] text-[#60a5fa] hover:text-[#c4b5fd] transition-colors"
                       >
                         Alle
                       </button>
@@ -261,7 +261,7 @@ export function InstagramImport({ onImport, disabled }: Props) {
                           className={cn(
                             "relative aspect-square rounded-xl overflow-hidden border-2 transition-all",
                             isSel
-                              ? "border-[#7c6af7] ring-1 ring-[#7c6af7]/40"
+                              ? "border-[#1d4ed8] ring-1 ring-[#1d4ed8]/40"
                               : "border-transparent opacity-50 hover:opacity-75"
                           )}
                         >
@@ -273,7 +273,7 @@ export function InstagramImport({ onImport, disabled }: Props) {
                             unoptimized
                           />
                           {isSel && (
-                            <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#7c6af7] flex items-center justify-center">
+                            <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#1d4ed8] flex items-center justify-center">
                               <CheckIcon size={9} className="text-white" />
                             </div>
                           )}
@@ -305,7 +305,7 @@ export function InstagramImport({ onImport, disabled }: Props) {
               <button
                 onClick={handleImport}
                 disabled={selected.size === 0}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-white bg-[#7c6af7]/80 hover:bg-[#7c6af7] disabled:opacity-40 transition-all"
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-white bg-[#1d4ed8]/80 hover:bg-[#1d4ed8] disabled:opacity-40 transition-all"
               >
                 <DownloadCloudIcon size={14} />
                 {selected.size === 0
