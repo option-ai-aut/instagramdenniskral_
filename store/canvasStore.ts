@@ -112,7 +112,7 @@ type CanvasStore = {
   templates: Template[];
 
   setTitle: (title: string) => void;
-  setSavedId: (id: string) => void;
+  setSavedId: (id: string | null) => void;
   addSlide: () => void;
   removeSlide: (id: string) => void;
   duplicateSlide: (id: string) => void;
@@ -123,6 +123,8 @@ type CanvasStore = {
   updateElement: (slideId: string, elementId: string, update: Partial<TextElement>) => void;
   removeElement: (slideId: string, elementId: string) => void;
   loadTemplate: (templateId: string) => void;
+  loadCarousel: (id: string, title: string, slides: Slide[]) => void;
+  newCarousel: () => void;
   reorderSlides: (from: number, to: number) => void;
 };
 
@@ -240,7 +242,33 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         id: nanoid(),
         elements: sl.elements.map((el) => ({ ...el, id: nanoid() })),
       }));
-      set({ slides, selectedSlideId: slides[0]?.id ?? null, selectedElementId: null });
+      set({ slides, selectedSlideId: slides[0]?.id ?? null, selectedElementId: null, savedCarouselId: null });
+    },
+
+    loadCarousel: (id, title, rawSlides) => {
+      const slides = rawSlides.map((sl) => ({
+        ...sl,
+        id: nanoid(),
+        elements: sl.elements.map((el) => ({ ...el, id: nanoid() })),
+      }));
+      set({
+        slides,
+        selectedSlideId: slides[0]?.id ?? null,
+        selectedElementId: null,
+        carouselTitle: title,
+        savedCarouselId: id,
+      });
+    },
+
+    newCarousel: () => {
+      const slide = makeDefaultSlide();
+      set({
+        slides: [slide],
+        selectedSlideId: slide.id,
+        selectedElementId: null,
+        carouselTitle: "Neues Karussell",
+        savedCarouselId: null,
+      });
     },
 
     reorderSlides: (from, to) =>
