@@ -1,12 +1,52 @@
 "use client";
 
-import { PlusIcon, CopyIcon, Trash2Icon } from "lucide-react";
+import { useRef, useState } from "react";
+import { PlusIcon, CopyIcon, Trash2Icon, GripVerticalIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCanvasStore } from "@/store/canvasStore";
 import { SlidePreview } from "./SlidePreview";
 
 export function SlideList() {
-  const { slides, selectedSlideId, selectSlide, addSlide, removeSlide, duplicateSlide } = useCanvasStore();
+  const { slides, selectedSlideId, selectSlide, addSlide, removeSlide, duplicateSlide, reorderSlides } =
+    useCanvasStore();
+
+  const dragIndexRef = useRef<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, idx: number) => {
+    dragIndexRef.current = idx;
+    e.dataTransfer.effectAllowed = "move";
+    // Transparent drag image so the slide thumbnail stays visible
+    const ghost = document.createElement("div");
+    ghost.style.position = "fixed";
+    ghost.style.top = "-9999px";
+    document.body.appendChild(ghost);
+    e.dataTransfer.setDragImage(ghost, 0, 0);
+    setTimeout(() => document.body.removeChild(ghost), 0);
+  };
+
+  const handleDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragIndexRef.current !== null && dragIndexRef.current !== idx) {
+      setDragOver(idx);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, toIdx: number) => {
+    e.preventDefault();
+    const fromIdx = dragIndexRef.current;
+    if (fromIdx !== null && fromIdx !== toIdx) {
+      reorderSlides(fromIdx, toIdx);
+    }
+    dragIndexRef.current = null;
+    setDragOver(null);
+  };
+
+  const handleDragEnd = () => {
+    dragIndexRef.current = null;
+    setDragOver(null);
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -30,11 +70,19 @@ export function SlideList() {
         {slides.map((slide, idx) => (
           <div
             key={slide.id}
+            draggable
+            onDragStart={(e) => handleDragStart(e, idx)}
+            onDragOver={(e) => handleDragOver(e, idx)}
+            onDrop={(e) => handleDrop(e, idx)}
+            onDragEnd={handleDragEnd}
             className={cn(
-              "group relative rounded-xl overflow-hidden cursor-pointer border transition-all duration-200",
+              "group relative rounded-xl overflow-hidden cursor-pointer border transition-all duration-150",
               selectedSlideId === slide.id
                 ? "border-[#1d4ed8]/50 ring-1 ring-[#1d4ed8]/20"
-                : "border-white/[0.06] hover:border-white/[0.12]"
+                : "border-white/[0.06] hover:border-white/[0.12]",
+              dragOver === idx && dragIndexRef.current !== idx
+                ? "ring-2 ring-[#1d4ed8] border-[#1d4ed8]/80 scale-[1.02]"
+                : ""
             )}
             onClick={() => selectSlide(slide.id)}
           >
@@ -45,6 +93,11 @@ export function SlideList() {
             {/* Slide number */}
             <div className="absolute top-1.5 left-1.5 w-4 h-4 rounded-full bg-black/70 flex items-center justify-center">
               <span className="text-[8px] text-white/60">{idx + 1}</span>
+            </div>
+
+            {/* Drag handle – always visible, subtle */}
+            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-60 transition-opacity cursor-grab active:cursor-grabbing">
+              <GripVerticalIcon size={12} className="text-white rotate-90" />
             </div>
 
             {/* Actions */}
