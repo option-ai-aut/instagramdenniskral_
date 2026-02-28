@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/logout"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/api/auth/login",
+  "/api/auth/logout",
+  "/api/openclaw",   // Openclaw API has its own API-key auth
+];
 const AUTH_COOKIE = "app_auth";
 
 /** Constant-time string comparison to prevent timing attacks (Edge-runtime compatible). */
