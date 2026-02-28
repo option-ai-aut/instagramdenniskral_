@@ -4,12 +4,31 @@ import { useCanvasStore, type SlideBackground } from "@/store/canvasStore";
 import { cn } from "@/lib/utils";
 
 const GRADIENTS = [
-  { label: "Dark Black", value: "linear-gradient(135deg, #0a0a0f 0%, #111118 100%)" },
-  { label: "Dark Blue", value: "linear-gradient(135deg, #0a0a0f 0%, #0f1a2e 100%)" },
-  { label: "Dark Gold", value: "linear-gradient(160deg, #0a0a0f 0%, #1a1500 60%, #0a0a0f 100%)" },
-  { label: "Midnight", value: "linear-gradient(135deg, #050508 0%, #0d0d1a 100%)" },
-  { label: "Carbon", value: "linear-gradient(135deg, #111114 0%, #1a1a1e 100%)" },
-  { label: "Navy Blue", value: "linear-gradient(135deg, #0a0f1a 0%, #0d1a2e 100%)" },
+  // Schwarz / Neutral
+  { label: "Obsidian",    value: "linear-gradient(135deg, #050508 0%, #111118 100%)" },
+  { label: "Carbon",      value: "linear-gradient(160deg, #0e0e11 0%, #1a1a1e 100%)" },
+  { label: "Ash",         value: "linear-gradient(135deg, #0a0a0f 0%, #1c1c22 50%, #0a0a0f 100%)" },
+  { label: "Graphite",    value: "linear-gradient(180deg, #111114 0%, #1e1e24 100%)" },
+
+  // Blau / Navy
+  { label: "Deep Navy",   value: "linear-gradient(135deg, #020408 0%, #0a1628 100%)" },
+  { label: "Abyss",       value: "linear-gradient(160deg, #050810 0%, #0d1a30 60%, #050810 100%)" },
+  { label: "Steel",       value: "linear-gradient(135deg, #080c14 0%, #111c2e 100%)" },
+  { label: "Ink",         value: "linear-gradient(150deg, #06080e 0%, #0e1420 100%)" },
+
+  // Warm / Gold
+  { label: "Bronze",      value: "linear-gradient(135deg, #0a0a06 0%, #1a1408 100%)" },
+  { label: "Ember",       value: "linear-gradient(160deg, #0d0805 0%, #1e1106 60%, #0d0805 100%)" },
+  { label: "Dark Gold",   value: "linear-gradient(135deg, #0a0a0f 0%, #1a1400 50%, #0f0c00 100%)" },
+
+  // Grün / Teal (sehr dunkel, kaum sichtbar)
+  { label: "Forest",      value: "linear-gradient(135deg, #060a06 0%, #0d1a0e 100%)" },
+  { label: "Slate Teal",  value: "linear-gradient(150deg, #050c0c 0%, #0c1a1a 100%)" },
+
+  // Rauch / Roségold
+  { label: "Smoke",       value: "linear-gradient(135deg, #0f0c0c 0%, #1e1818 100%)" },
+  { label: "Rosewood",    value: "linear-gradient(135deg, #0d0809 0%, #1a0e10 100%)" },
+  { label: "Onyx",        value: "linear-gradient(180deg, #080808 0%, #141416 50%, #080808 100%)" },
 ];
 
 const SOLID_COLORS = [
@@ -86,14 +105,21 @@ export function BackgroundControls() {
                   key={g.value}
                   onClick={() => update({ gradient: g.value })}
                   className={cn(
-                    "h-10 rounded-xl border-2 transition-all",
+                    "rounded-xl border-2 transition-all overflow-hidden flex flex-col",
                     slide.background.gradient === g.value
                       ? "border-[#1d4ed8]"
-                      : "border-transparent hover:border-white/20"
+                      : "border-white/[0.06] hover:border-white/20"
                   )}
-                  style={{ background: g.value }}
                   title={g.label}
-                />
+                >
+                  <div className="h-10 w-full" style={{ background: g.value }} />
+                  <div
+                    className="px-2 py-1 text-[9px] text-white/40 text-left truncate"
+                    style={{ background: "rgba(255,255,255,0.03)" }}
+                  >
+                    {g.label}
+                  </div>
+                </button>
               ))}
             </div>
           </div>
