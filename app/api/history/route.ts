@@ -1,14 +1,15 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, SYSTEM_USER_ID } from "@/lib/auth";
 
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try { await requireAuth(); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const [sessions, carousels] = await Promise.all([
     prisma.session.findMany({
-      where: { userId },
+      where: { userId: SYSTEM_USER_ID },
       include: {
         images: {
           where: { status: "done" },
@@ -18,7 +19,7 @@ export async function GET() {
       orderBy: { updatedAt: "desc" },
     }),
     prisma.carousel.findMany({
-      where: { userId },
+      where: { userId: SYSTEM_USER_ID },
       orderBy: { updatedAt: "desc" },
     }),
   ]);

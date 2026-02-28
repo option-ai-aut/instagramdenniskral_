@@ -1,24 +1,16 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth } from "@/lib/auth";
 
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const { id } = await params;
-  const item = await prisma.imageItem.findFirst({
-    where: { id },
-    include: { session: true },
-  });
-
-  if (!item || item.session.userId !== userId) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  try { await requireAuth(); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { id } = await params;
   await prisma.imageItem.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }

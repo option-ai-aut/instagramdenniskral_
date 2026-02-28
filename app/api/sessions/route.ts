@@ -1,15 +1,24 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireAuth, SYSTEM_USER_ID } from "@/lib/auth";
+
+async function ensureUser() {
+  await prisma.user.upsert({
+    where: { id: SYSTEM_USER_ID },
+    update: {},
+    create: { id: SYSTEM_USER_ID, email: "dennis@denniskral.com" },
+  });
+}
 
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try { await requireAuth(); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  await ensureUser(userId);
+  await ensureUser();
 
   const sessions = await prisma.session.findMany({
-    where: { userId },
+    where: { userId: SYSTEM_USER_ID },
     include: { images: { orderBy: { createdAt: "asc" } } },
     orderBy: { updatedAt: "desc" },
     take: 10,
@@ -19,26 +28,19 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try { await requireAuth(); } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  await ensureUser(userId);
+  await ensureUser();
 
   const body = await req.json().catch(() => ({}));
   const name = body.name ?? "Neue Session";
 
   const session = await prisma.session.create({
-    data: { userId, name },
+    data: { userId: SYSTEM_USER_ID, name },
     include: { images: true },
   });
 
   return NextResponse.json({ session });
-}
-
-async function ensureUser(userId: string) {
-  await prisma.user.upsert({
-    where: { id: userId },
-    update: {},
-    create: { id: userId, email: `${userId}@clerk.local` },
-  });
 }

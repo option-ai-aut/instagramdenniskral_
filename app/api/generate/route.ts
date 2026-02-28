@@ -1,12 +1,15 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { editImageWithGemini } from "@/lib/gemini";
 import { uploadBase64ToSupabase } from "@/lib/supabase";
+import { requireAuth, SYSTEM_USER_ID } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    await requireAuth();
+  } catch {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   try {
     const { imageItemId, imageBase64, mimeType, prompt } = await req.json();
@@ -22,7 +25,7 @@ export async function POST(req: NextRequest) {
 
     const result = await editImageWithGemini(imageBase64, mimeType ?? "image/jpeg", prompt);
 
-    const path = `${userId}/results/${imageItemId}-${Date.now()}.png`;
+    const path = `${SYSTEM_USER_ID}/results/${imageItemId}-${Date.now()}.png`;
     const resultUrl = await uploadBase64ToSupabase(result.base64, path, result.mimeType);
 
     const updated = await prisma.imageItem.update({

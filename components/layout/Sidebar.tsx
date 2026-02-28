@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { UserButton } from "@clerk/nextjs";
-import { ImageIcon, LayoutIcon, ClockIcon, ZapIcon } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { ImageIcon, LayoutIcon, ClockIcon, ZapIcon, LogOutIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -29,6 +28,12 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.replace("/login");
+  };
 
   return (
     <aside
@@ -93,23 +98,18 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* User */}
+      {/* Logout */}
       <div
-        className="px-4 py-4 border-t flex items-center gap-3"
+        className="px-4 py-4 border-t"
         style={{ borderColor: "var(--glass-border)" }}
       >
-        <UserButton
-          appearance={{
-            variables: { colorPrimary: "#7c6af7" },
-            elements: {
-              avatarBox: "w-8 h-8",
-            },
-          }}
-        />
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-white/70">Angemeldet</p>
-          <p className="text-[10px] text-white/30 truncate">denniskral_</p>
-        </div>
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-white/30 hover:text-white/60 hover:bg-white/[0.04] transition-all"
+        >
+          <LogOutIcon size={13} />
+          Abmelden
+        </button>
       </div>
     </aside>
   );

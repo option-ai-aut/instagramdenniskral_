@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useAuth } from "@clerk/nextjs";
 import { ImageList } from "@/components/image-editor/ImageList";
 import { PromptPanel } from "@/components/image-editor/PromptPanel";
 import { ResultPanel } from "@/components/image-editor/ResultPanel";
@@ -9,21 +8,24 @@ import { useImageEditorStore } from "@/store/imageEditorStore";
 import { base64ToDataUrl } from "@/lib/utils";
 
 export default function ImageEditorPage() {
-  const { userId } = useAuth();
   const { images, sessionId, setSessionId, updateImage } = useImageEditorStore();
   const initDone = useRef(false);
 
   useEffect(() => {
-    if (initDone.current || !userId) return;
+    if (initDone.current) return;
     initDone.current = true;
 
-    fetch("/api/sessions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Session " + new Date().toLocaleDateString("de-DE") }) })
+    fetch("/api/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Session " + new Date().toLocaleDateString("de-DE") }),
+    })
       .then((r) => r.json())
       .then(({ session }) => {
         if (session?.id) setSessionId(session.id);
       })
       .catch(console.error);
-  }, [userId, setSessionId]);
+  }, [setSessionId]);
 
   const generateSingle = async (imageId: string) => {
     const img = images.find((i) => i.id === imageId);
