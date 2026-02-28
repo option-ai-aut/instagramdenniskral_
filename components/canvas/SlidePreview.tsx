@@ -84,6 +84,13 @@ function ElementRenderer({
   onSelect?: () => void;
   scale: number;
 }) {
+  const anchorTransform: Record<string, string> = {
+    top:    "translateY(0%)",
+    center: "translateY(-50%)",
+    bottom: "translateY(-100%)",
+  };
+  const transform = anchorTransform[element.verticalAnchor ?? "center"];
+
   return (
     <div
       className={cn(
@@ -94,7 +101,7 @@ function ElementRenderer({
       style={{
         top: `${element.y}%`,
         left: 0,
-        transform: "translateY(-50%)",
+        transform,
       }}
       onClick={(e) => {
         e.stopPropagation();

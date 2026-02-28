@@ -103,6 +103,13 @@ export async function GET(
             };
             const textAlign = (el.align ?? "center") as "center" | "left" | "right";
 
+            const anchorTransform: Record<string, string> = {
+              top:    "translateY(0%)",
+              center: "translateY(-50%)",
+              bottom: "translateY(-100%)",
+            };
+            const transform = anchorTransform[(el as TextElement & { verticalAnchor?: string }).verticalAnchor ?? "center"];
+
             return (
               <div
                 key={el.id}
@@ -111,7 +118,7 @@ export async function GET(
                   top: `${topPct}%`,
                   left: 0,
                   right: 0,
-                  transform: "translateY(-50%)",
+                  transform,
                   display: "flex",
                   flexDirection: "column",
                   alignItems: alignMap[textAlign] ?? "center",

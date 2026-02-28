@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Trash2Icon, PlusIcon, ChevronDownIcon, TypeIcon, LockIcon, LockOpenIcon } from "lucide-react";
+import { Trash2Icon, PlusIcon, ChevronDownIcon, TypeIcon, LockIcon, LockOpenIcon, AlignStartVertical, AlignCenterVertical, AlignEndVertical } from "lucide-react";
 import { useCanvasStore, type TextElement } from "@/store/canvasStore";
 import { DISPLAY_FONTS, BODY_FONTS } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
@@ -337,6 +337,32 @@ export function ElementControls() {
                 value={element.y}
                 onCommit={(v) => update({ y: v })}
               />
+            </div>
+
+            {/* Vertical anchor */}
+            <div>
+              <p className="text-[10px] text-white/30 mb-2">Text wächst nach</p>
+              <div className="flex gap-1.5">
+                {([
+                  { value: "top",    label: "Unten",  Icon: AlignStartVertical },
+                  { value: "center", label: "Mitte",  Icon: AlignCenterVertical },
+                  { value: "bottom", label: "Oben",   Icon: AlignEndVertical },
+                ] as const).map(({ value, label, Icon }) => (
+                  <button
+                    key={value}
+                    onClick={() => update({ verticalAnchor: value })}
+                    className={cn(
+                      "flex-1 flex flex-col items-center gap-1 py-2 rounded-xl border text-[10px] transition-all",
+                      (element.verticalAnchor ?? "center") === value
+                        ? "border-[#1d4ed8]/40 bg-[#1d4ed8]/10 text-[#60a5fa]"
+                        : "border-white/[0.08] text-white/40 hover:border-white/20"
+                    )}
+                  >
+                    <Icon size={13} />
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Color */}

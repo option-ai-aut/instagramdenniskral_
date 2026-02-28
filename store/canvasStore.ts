@@ -15,6 +15,8 @@ export type TextElement = {
   align: TextAlign;
   x: number;
   y: number;
+  /** Vertical anchor: where Y% is pinned. "top" = top edge, "center" = middle (default), "bottom" = bottom edge */
+  verticalAnchor?: "top" | "center" | "bottom";
   /** When true the element is fixed/anchored – Openclaw textOverrides cannot change it */
   locked?: boolean;
 };
