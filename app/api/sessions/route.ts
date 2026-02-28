@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getDb, newId, now, assertNoError } from "@/lib/db";
 import { requireAuth, SYSTEM_USER_ID } from "@/lib/auth";
 
-async function ensureUser() {
-  try {
-    await prisma.user.upsert({
-      where: { id: SYSTEM_USER_ID },
-      update: {},
-      create: { id: SYSTEM_USER_ID, email: "dennis@denniskral.com" },
-    });
-  } catch (err) {
-    // Non-fatal: user may already exist or DB constraint edge case
-    console.error("ensureUser error:", err instanceof Error ? err.message : err);
-  }
+async function ensureUser(db: ReturnType<typeof getDb>) {
+  const { error } = await db
+    .from("User")
+    .upsert({ id: SYSTEM_USER_ID, email: "dennis@denniskral.com" }, { onConflict: "id" });
+  if (error) console.error("ensureUser:", error.message);
 }
 
 export async function GET() {
@@ -23,16 +17,18 @@ export async function GET() {
   }
 
   try {
-    await ensureUser();
+    const db = getDb();
+    await ensureUser(db);
 
-    const sessions = await prisma.session.findMany({
-      where: { userId: SYSTEM_USER_ID },
-      include: { images: { orderBy: { createdAt: "asc" } } },
-      orderBy: { updatedAt: "desc" },
-      take: 10,
-    });
+    const { data: sessions, error } = await db
+      .from("Session")
+      .select('*, images:ImageItem(*)')
+      .eq("userId", SYSTEM_USER_ID)
+      .order("updatedAt", { ascending: false })
+      .limit(10);
 
-    return NextResponse.json({ sessions });
+    assertNoError(error, "GET /api/sessions");
+    return NextResponse.json({ sessions: sessions ?? [] });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("GET /api/sessions error:", message);
@@ -48,17 +44,21 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await ensureUser();
+    const db = getDb();
+    await ensureUser(db);
 
     const body = await req.json().catch(() => ({}));
     const name = typeof body.name === "string" ? body.name.slice(0, 200) : "Neue Session";
+    const ts = now();
 
-    const session = await prisma.session.create({
-      data: { userId: SYSTEM_USER_ID, name },
-      include: { images: true },
-    });
+    const { data: session, error } = await db
+      .from("Session")
+      .insert({ id: newId(), userId: SYSTEM_USER_ID, name, createdAt: ts, updatedAt: ts })
+      .select('*, images:ImageItem(*)')
+      .single();
 
-    return NextResponse.json({ session });
+    assertNoError(error, "POST /api/sessions");
+    return NextResponse.json({ session: { ...session, images: session?.images ?? [] } });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("POST /api/sessions error:", message);

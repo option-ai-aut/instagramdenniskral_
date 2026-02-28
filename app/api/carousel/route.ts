@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getDb, newId, now, assertNoError } from "@/lib/db";
 import { requireAuth, SYSTEM_USER_ID } from "@/lib/auth";
 
-async function ensureUser() {
-  try {
-    await prisma.user.upsert({
-      where: { id: SYSTEM_USER_ID },
-      update: {},
-      create: { id: SYSTEM_USER_ID, email: "dennis@denniskral.com" },
-    });
-  } catch (err) {
-    console.error("ensureUser error:", err instanceof Error ? err.message : err);
-  }
+async function ensureUser(db: ReturnType<typeof getDb>) {
+  const { error } = await db
+    .from("User")
+    .upsert({ id: SYSTEM_USER_ID, email: "dennis@denniskral.com" }, { onConflict: "id" });
+  if (error) console.error("ensureUser:", error.message);
 }
 
 export async function GET() {
@@ -22,11 +17,15 @@ export async function GET() {
   }
 
   try {
-    const carousels = await prisma.carousel.findMany({
-      where: { userId: SYSTEM_USER_ID },
-      orderBy: { updatedAt: "desc" },
-    });
-    return NextResponse.json({ carousels });
+    const db = getDb();
+    const { data: carousels, error } = await db
+      .from("Carousel")
+      .select("*")
+      .eq("userId", SYSTEM_USER_ID)
+      .order("updatedAt", { ascending: false });
+
+    assertNoError(error, "GET /api/carousel");
+    return NextResponse.json({ carousels: carousels ?? [] });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("GET /api/carousel error:", message);
@@ -42,7 +41,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await ensureUser();
+    const db = getDb();
+    await ensureUser(db);
 
     const body = await req.json().catch(() => ({}));
     const { slidesJson, thumbUrl } = body;
@@ -55,10 +55,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "slidesJson is required" }, { status: 400 });
     }
 
-    const carousel = await prisma.carousel.create({
-      data: { userId: SYSTEM_USER_ID, title, slidesJson, thumbUrl },
-    });
+    const ts = now();
+    const { data: carousel, error } = await db
+      .from("Carousel")
+      .insert({ id: newId(), userId: SYSTEM_USER_ID, title, slidesJson, thumbUrl: thumbUrl ?? null, createdAt: ts, updatedAt: ts })
+      .select()
+      .single();
 
+    assertNoError(error, "POST /api/carousel");
     return NextResponse.json({ carousel });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

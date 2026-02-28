@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getDb, now } from "@/lib/db";
 import { editImageWithGemini } from "@/lib/gemini";
 import { uploadBase64ToSupabase } from "@/lib/supabase";
 import { requireAuth, SYSTEM_USER_ID } from "@/lib/auth";
@@ -23,9 +23,7 @@ async function processImage(
   imageItemId: string;
   error: string;
 }> {
-  const promptList = savedPrompts
-    .map((p, i) => `${i + 1}. ${p}`)
-    .join("\n");
+  const promptList = savedPrompts.map((p, i) => `${i + 1}. ${p}`).join("\n");
 
   const metaPrompt = `You are editing an image for an Instagram account focused on luxury lifestyle, cars, and entrepreneurship (@denniskral_).
 
@@ -39,20 +37,19 @@ Do not add text overlays. Return only the edited image.`;
 
   try {
     const result = await editImageWithGemini(img.imageBase64, img.mimeType, metaPrompt);
-
-    let resultUrl: string | undefined;
     const isRealDbId = !img.imageItemId.startsWith("temp-");
+    const db = getDb();
 
     if (isRealDbId) {
       try {
         const path = `${SYSTEM_USER_ID}/results/${img.imageItemId}-${Date.now()}.png`;
-        resultUrl = await uploadBase64ToSupabase(result.base64, result.mimeType, path);
-        await prisma.imageItem.update({
-          where: { id: img.imageItemId },
-          data: { resultUrl, status: "done", prompt: metaPrompt },
-        });
+        const resultUrl = await uploadBase64ToSupabase(result.base64, result.mimeType, path);
+        await db
+          .from("ImageItem")
+          .update({ resultUrl, status: "done", prompt: metaPrompt, updatedAt: now() })
+          .eq("id", img.imageItemId);
       } catch {
-        // DB update failure is non-fatal
+        // non-fatal
       }
     }
 
@@ -96,7 +93,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Maximal 20 Bilder gleichzeitig" }, { status: 400 });
     }
 
-    // Process all images in parallel
     const results = await Promise.all(
       images.map((img) => processImage(img, savedPrompts))
     );

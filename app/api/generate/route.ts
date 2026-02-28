@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getDb, now } from "@/lib/db";
 import { editImageWithGemini } from "@/lib/gemini";
 import { uploadBase64ToSupabase } from "@/lib/supabase";
 import { requireAuth, SYSTEM_USER_ID } from "@/lib/auth";
-
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,16 +23,13 @@ export async function POST(req: NextRequest) {
     }
 
     const isRealDbId = !imageItemId.startsWith("temp-");
+    const db = getDb();
 
     if (isRealDbId) {
-      try {
-        await prisma.imageItem.update({
-          where: { id: imageItemId },
-          data: { status: "processing", prompt },
-        });
-      } catch {
-        // Item may not exist yet – continue without DB update
-      }
+      await db
+        .from("ImageItem")
+        .update({ status: "processing", prompt, updatedAt: now() })
+        .eq("id", imageItemId);
     }
 
     const result = await editImageWithGemini(imageBase64, mimeType ?? "image/jpeg", prompt);
@@ -42,10 +38,10 @@ export async function POST(req: NextRequest) {
       try {
         const path = `${SYSTEM_USER_ID}/results/${imageItemId}-${Date.now()}.png`;
         const resultUrl = await uploadBase64ToSupabase(result.base64, result.mimeType, path);
-        await prisma.imageItem.update({
-          where: { id: imageItemId },
-          data: { resultUrl, status: "done" },
-        });
+        await db
+          .from("ImageItem")
+          .update({ resultUrl, status: "done", updatedAt: now() })
+          .eq("id", imageItemId);
       } catch {
         // DB update failure is non-fatal – result still returned to client
       }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getDb } from "@/lib/db";
 import { requireAuth, SYSTEM_USER_ID } from "@/lib/auth";
 
 export async function DELETE(
@@ -14,17 +14,26 @@ export async function DELETE(
 
   try {
     const { id } = await params;
+    const db = getDb();
 
-    const existing = await prisma.savedPrompt.findFirst({
-      where: { id, userId: SYSTEM_USER_ID },
-    });
+    const { data: existing } = await db
+      .from("SavedPrompt")
+      .select("id")
+      .eq("id", id)
+      .eq("userId", SYSTEM_USER_ID)
+      .single();
 
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    await prisma.savedPrompt.delete({ where: { id } });
+    const { error } = await db
+      .from("SavedPrompt")
+      .delete()
+      .eq("id", id)
+      .eq("userId", SYSTEM_USER_ID);
 
+    if (error) throw new Error(error.message);
     return NextResponse.json({ success: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

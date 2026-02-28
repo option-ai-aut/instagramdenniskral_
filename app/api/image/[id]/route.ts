@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getDb } from "@/lib/db";
 import { requireAuth, SYSTEM_USER_ID } from "@/lib/auth";
 
 export async function DELETE(
@@ -12,18 +12,27 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
+  try {
+    const { id } = await params;
+    const db = getDb();
 
-  // Verify ownership via session → user chain
-  const item = await prisma.imageItem.findFirst({
-    where: { id },
-    include: { session: { select: { userId: true } } },
-  });
+    // Verify ownership via session → user chain
+    const { data: item } = await db
+      .from("ImageItem")
+      .select("id, Session!inner(userId)")
+      .eq("id", id)
+      .single();
 
-  if (!item || item.session.userId !== SYSTEM_USER_ID) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!item || (item as { Session: { userId: string } }).Session?.userId !== SYSTEM_USER_ID) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const { error } = await db.from("ImageItem").delete().eq("id", id);
+    if (error) throw new Error(error.message);
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  await prisma.imageItem.delete({ where: { id } });
-  return NextResponse.json({ success: true });
 }

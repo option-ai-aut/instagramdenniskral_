@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getDb, newId, assertNoError } from "@/lib/db";
 import { requireAuth, SYSTEM_USER_ID } from "@/lib/auth";
 
 const MAX_PROMPT_LENGTH = 2000;
@@ -12,11 +12,15 @@ export async function GET() {
   }
 
   try {
-    const prompts = await prisma.savedPrompt.findMany({
-      where: { userId: SYSTEM_USER_ID },
-      orderBy: { createdAt: "desc" },
-    });
-    return NextResponse.json({ prompts });
+    const db = getDb();
+    const { data: prompts, error } = await db
+      .from("SavedPrompt")
+      .select("*")
+      .eq("userId", SYSTEM_USER_ID)
+      .order("createdAt", { ascending: false });
+
+    assertNoError(error, "GET /api/prompts");
+    return NextResponse.json({ prompts: prompts ?? [] });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("GET /api/prompts error:", message);
@@ -45,10 +49,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const prompt = await prisma.savedPrompt.create({
-      data: { userId: SYSTEM_USER_ID, text: text.trim() },
-    });
+    const db = getDb();
+    const { data: prompt, error } = await db
+      .from("SavedPrompt")
+      .insert({ id: newId(), userId: SYSTEM_USER_ID, text: text.trim(), createdAt: new Date().toISOString() })
+      .select()
+      .single();
 
+    assertNoError(error, "POST /api/prompts");
     return NextResponse.json({ prompt }, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

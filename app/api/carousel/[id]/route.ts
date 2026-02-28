@@ -1,52 +1,97 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getDb, now } from "@/lib/db";
 import { requireAuth, SYSTEM_USER_ID } from "@/lib/auth";
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try { await requireAuth(); } catch {
+  try {
+    await requireAuth();
+  } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
-  const carousel = await prisma.carousel.findFirst({
-    where: { id, userId: SYSTEM_USER_ID },
-  });
+  try {
+    const { id } = await params;
+    const db = getDb();
 
-  if (!carousel) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json({ carousel });
+    const { data: carousel, error } = await db
+      .from("Carousel")
+      .select("*")
+      .eq("id", id)
+      .eq("userId", SYSTEM_USER_ID)
+      .single();
+
+    if (error || !carousel) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ carousel });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try { await requireAuth(); } catch {
+  try {
+    await requireAuth();
+  } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
-  const body = await req.json();
+  try {
+    const { id } = await params;
+    const body = await req.json();
+    const db = getDb();
 
-  await prisma.carousel.updateMany({
-    where: { id, userId: SYSTEM_USER_ID },
-    data: { title: body.title, slidesJson: body.slidesJson, thumbUrl: body.thumbUrl },
-  });
+    const updates: Record<string, unknown> = { updatedAt: now() };
+    if (typeof body.title === "string") updates.title = body.title.slice(0, 200);
+    if (body.slidesJson !== undefined) updates.slidesJson = body.slidesJson;
+    if (body.thumbUrl !== undefined) updates.thumbUrl = body.thumbUrl;
 
-  return NextResponse.json({ success: true });
+    const { error } = await db
+      .from("Carousel")
+      .update(updates)
+      .eq("id", id)
+      .eq("userId", SYSTEM_USER_ID);
+
+    if (error) throw new Error(error.message);
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try { await requireAuth(); } catch {
+  try {
+    await requireAuth();
+  } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
-  await prisma.carousel.deleteMany({ where: { id, userId: SYSTEM_USER_ID } });
-  return NextResponse.json({ success: true });
+  try {
+    const { id } = await params;
+    const db = getDb();
+
+    const { error } = await db
+      .from("Carousel")
+      .delete()
+      .eq("id", id)
+      .eq("userId", SYSTEM_USER_ID);
+
+    if (error) throw new Error(error.message);
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
