@@ -3,18 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { ImageList } from "@/components/image-editor/ImageList";
 import { PromptPanel } from "@/components/image-editor/PromptPanel";
-import { ResultPanel } from "@/components/image-editor/ResultPanel";
 import { useImageEditorStore } from "@/store/imageEditorStore";
 import { base64ToDataUrl } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { ImageIcon, SparklesIcon, StarIcon } from "lucide-react";
+import { ImageIcon, SparklesIcon } from "lucide-react";
 
-type MobileTab = "images" | "prompt" | "result";
+type MobileTab = "images" | "prompt";
 
 const mobileTabs: { id: MobileTab; label: string; icon: React.ElementType }[] = [
   { id: "images", label: "Bilder", icon: ImageIcon },
-  { id: "prompt", label: "Prompt", icon: SparklesIcon },
-  { id: "result", label: "Ergebnis", icon: StarIcon },
+  { id: "prompt", label: "Prompt & Ergebnis", icon: SparklesIcon },
 ];
 
 export default function ImageEditorPage() {
@@ -82,8 +80,8 @@ export default function ImageEditorPage() {
 
       updateImage(imageId, { status: "done", resultDataUrl, resultBase64, resultMimeType: mimeType });
 
-      // Auto-switch to result tab on mobile when done
-      setMobileTab("result");
+      // Auto-switch to prompt tab on mobile when done
+      setMobileTab("prompt");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Fehler";
       updateImage(imageId, { status: "error", error: message });
@@ -99,7 +97,6 @@ export default function ImageEditorPage() {
 
   const isGeneratingAll = images.some((img) => img.status === "processing");
 
-  // When user selects an image from list on mobile, auto-switch to prompt tab
   const handleMobileImageSelect = () => {
     setMobileTab("prompt");
   };
@@ -108,7 +105,7 @@ export default function ImageEditorPage() {
     <div className="flex flex-col h-full bg-grid">
       <div className="absolute inset-0 bg-gradient-to-br from-[#7c6af7]/[0.03] via-transparent to-transparent pointer-events-none" />
 
-      {/* ── DESKTOP: 3-column layout ── */}
+      {/* ── DESKTOP: 2-column layout ── */}
       <div className="hidden md:flex flex-1 overflow-hidden relative z-10 h-full">
         <div
           className="w-[200px] flex-shrink-0 flex flex-col border-r glass"
@@ -116,22 +113,16 @@ export default function ImageEditorPage() {
         >
           <ImageList />
         </div>
-        <div
-          className="flex-1 flex flex-col border-r glass"
-          style={{ borderColor: "var(--glass-border)" }}
-        >
+        <div className="flex-1 flex flex-col glass">
           <PromptPanel
             onGenerate={generateSingle}
             onGenerateAll={generateAll}
             isGeneratingAll={isGeneratingAll}
           />
         </div>
-        <div className="w-[320px] flex-shrink-0 flex flex-col glass">
-          <ResultPanel />
-        </div>
       </div>
 
-      {/* ── MOBILE: Tab layout ── */}
+      {/* ── MOBILE: 2-Tab layout ── */}
       <div className="flex md:hidden flex-col flex-1 overflow-hidden relative z-10">
         {/* Tab bar */}
         <div
@@ -142,8 +133,11 @@ export default function ImageEditorPage() {
             const active = mobileTab === tab.id;
             const selectedImg = images.find((i) => i.id === selectedId);
             const badge =
-              tab.id === "images" && images.length > 0 ? images.length :
-              tab.id === "result" && selectedImg?.resultDataUrl ? "✓" : null;
+              tab.id === "images" && images.length > 0
+                ? images.length
+                : tab.id === "prompt" && selectedImg?.resultDataUrl
+                ? "✓"
+                : null;
 
             return (
               <button
@@ -171,10 +165,7 @@ export default function ImageEditorPage() {
         {/* Tab content */}
         <div className="flex-1 overflow-hidden">
           {mobileTab === "images" && (
-            <div
-              className="h-full"
-              onClick={handleMobileImageSelect}
-            >
+            <div className="h-full" onClick={handleMobileImageSelect}>
               <ImageList />
             </div>
           )}
@@ -187,7 +178,6 @@ export default function ImageEditorPage() {
               isGeneratingAll={isGeneratingAll}
             />
           )}
-          {mobileTab === "result" && <ResultPanel />}
         </div>
       </div>
     </div>
