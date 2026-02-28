@@ -5,6 +5,7 @@ const PUBLIC_PATHS = [
   "/api/auth/login",
   "/api/auth/logout",
   "/api/openclaw",   // Openclaw API has its own API-key auth
+  "/api-docs",       // Public API documentation for Openclaw
 ];
 const AUTH_COOKIE = "app_auth";
 

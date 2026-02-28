@@ -5,6 +5,8 @@ import { XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useImageEditorStore, type EditorImage } from "@/store/imageEditorStore";
 import { ImageDropzone } from "./ImageDropzone";
+import { InstagramImport } from "./InstagramImport";
+import { nanoid } from "@/lib/nanoid";
 
 const statusLabels: Record<string, string> = {
   idle: "Bereit",
@@ -22,14 +24,32 @@ function StatusBadge({ status }: { status: EditorImage["status"] }) {
 }
 
 export function ImageList() {
-  const { images, selectedId, selectImage, removeImage } = useImageEditorStore();
+  const { images, selectedId, selectImage, removeImage, addImages } = useImageEditorStore();
+  const canAdd = images.length < 20;
+
+  const handleInstagramImport = (
+    imported: Array<{ base64: string; mimeType: string; dataUrl: string }>
+  ) => {
+    const newImages: EditorImage[] = imported.map((img) => ({
+      id: nanoid(),
+      originalDataUrl: img.dataUrl,
+      originalBase64: img.base64,
+      mimeType: img.mimeType,
+      prompt: "",
+      status: "idle" as const,
+    }));
+    addImages(newImages);
+  };
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b flex-shrink-0" style={{ borderColor: "var(--glass-border)" }}>
-        <p className="text-xs font-medium text-white/60">
-          Bilder <span className="text-white/30">{images.length}/20</span>
-        </p>
+      <div className="px-4 py-3 border-b flex-shrink-0 space-y-2" style={{ borderColor: "var(--glass-border)" }}>
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-medium text-white/60">
+            Bilder <span className="text-white/30">{images.length}/20</span>
+          </p>
+        </div>
+        <InstagramImport onImport={handleInstagramImport} disabled={!canAdd} />
       </div>
 
       {/* Desktop: vertical scroll list */}
