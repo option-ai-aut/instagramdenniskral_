@@ -110,6 +110,7 @@ function ElementRenderer({
           fontSize: `${element.fontSize * scale}px`,
           color: element.color,
           wordBreak: "break-word",
+          whiteSpace: "pre-wrap",
         }}
       >
         {element.text}

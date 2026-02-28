@@ -110,23 +110,28 @@ export async function GET(
                   right: 0,
                   transform: "translateY(-50%)",
                   display: "flex",
-                  justifyContent: alignMap[textAlign] ?? "center",
+                  flexDirection: "column",
+                  alignItems: alignMap[textAlign] ?? "center",
                   padding: "0 64px",
                 }}
               >
-                <span
-                  style={{
-                    fontSize: el.fontSize ?? 16,
-                    fontWeight: fontWeightNum(el.fontWeight ?? "normal"),
-                    color: el.color ?? "#ffffff",
-                    textAlign,
-                    lineHeight: 1.25,
-                    wordBreak: "break-word",
-                    maxWidth: "100%",
-                  }}
-                >
-                  {el.text}
-                </span>
+                {el.text.split("\n").map((line: string, li: number) => (
+                  <span
+                    key={li}
+                    style={{
+                      fontSize: el.fontSize ?? 16,
+                      fontWeight: fontWeightNum(el.fontWeight ?? "normal"),
+                      color: el.color ?? "#ffffff",
+                      textAlign,
+                      lineHeight: 1.3,
+                      wordBreak: "break-word",
+                      maxWidth: "100%",
+                      display: "block",
+                    }}
+                  >
+                    {line || " "}
+                  </span>
+                ))}
               </div>
             );
           })}
