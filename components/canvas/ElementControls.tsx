@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Trash2Icon, PlusIcon } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
+import { Trash2Icon, PlusIcon, ChevronDownIcon, TypeIcon } from "lucide-react";
 import { useCanvasStore, type TextElement } from "@/store/canvasStore";
+import { DISPLAY_FONTS, BODY_FONTS } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
 
 const COLORS = [
@@ -59,6 +61,133 @@ function RangeSlider({
       onPointerUp={handleCommit}
       className="w-full accent-[#7c6af7]"
     />
+  );
+}
+
+function FontPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (family: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
+
+  useEffect(() => { setMounted(true); }, []);
+
+  const handleOpen = () => {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 6, left: r.left, width: Math.max(r.width, 260) });
+    }
+    setOpen(true);
+  };
+
+  const select = (family: string) => {
+    onChange(family);
+    setOpen(false);
+  };
+
+  const currentFont = [...DISPLAY_FONTS, ...BODY_FONTS].find((f) => f.family === value);
+
+  const dropdown = open ? (
+    <>
+      {/* backdrop */}
+      <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
+      {/* panel */}
+      <div
+        className="fixed z-[9999] rounded-2xl border overflow-hidden shadow-2xl"
+        style={{
+          top: pos.top,
+          left: pos.left,
+          width: pos.width,
+          background: "rgba(14,14,20,0.98)",
+          borderColor: "rgba(255,255,255,0.09)",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05)",
+          maxHeight: "420px",
+          overflowY: "auto",
+        }}
+      >
+        {/* Display */}
+        <div className="px-3 pt-3 pb-1">
+          <p className="text-[9px] font-semibold text-[#a78bfa]/60 uppercase tracking-widest mb-2">
+            ✦ Zierschriften
+          </p>
+          <div className="space-y-0.5">
+            {DISPLAY_FONTS.map((f) => (
+              <button
+                key={f.family}
+                onClick={() => select(f.family)}
+                className={cn(
+                  "w-full text-left px-2.5 py-2 rounded-lg transition-all",
+                  value === f.family
+                    ? "bg-[#7c6af7]/15 text-white"
+                    : "text-white/50 hover:bg-white/[0.04] hover:text-white/80"
+                )}
+              >
+                <span className="text-[15px] block" style={{ fontFamily: f.family }}>
+                  {f.sampleText ?? f.label}
+                </span>
+                <span className="text-[9px] text-white/25">{f.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mx-3 my-1 h-px" style={{ background: "rgba(255,255,255,0.06)" }} />
+
+        {/* Body */}
+        <div className="px-3 pb-3 pt-1">
+          <p className="text-[9px] font-semibold text-white/30 uppercase tracking-widest mb-2">
+            Lauftext / Subtitle
+          </p>
+          <div className="space-y-0.5">
+            {BODY_FONTS.map((f) => (
+              <button
+                key={f.family}
+                onClick={() => select(f.family)}
+                className={cn(
+                  "w-full text-left px-2.5 py-2 rounded-lg transition-all",
+                  value === f.family
+                    ? "bg-[#7c6af7]/15 text-white"
+                    : "text-white/50 hover:bg-white/[0.04] hover:text-white/80"
+                )}
+              >
+                <span className="text-[14px] block" style={{ fontFamily: f.family }}>
+                  {f.sampleText ?? f.label}
+                </span>
+                <span className="text-[9px] text-white/25">{f.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  ) : null;
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={handleOpen}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.03] hover:border-white/15 transition-all"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <TypeIcon size={11} className="text-white/30 flex-shrink-0" />
+          <span
+            className="text-sm text-white/80 truncate"
+            style={{ fontFamily: value }}
+          >
+            {currentFont?.label ?? value}
+          </span>
+        </div>
+        <ChevronDownIcon size={11} className={cn("text-white/30 flex-shrink-0 transition-transform", open && "rotate-180")} />
+      </button>
+      {mounted ? createPortal(dropdown, document.body) : null}
+    </>
   );
 }
 
@@ -128,6 +257,15 @@ export function ElementControls() {
                 rows={3}
                 className="w-full rounded-xl border text-xs text-white/80 placeholder-white/20 p-2.5 resize-none focus:outline-none focus:ring-1 focus:ring-[#7c6af7]/50"
                 style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)" }}
+              />
+            </div>
+
+            {/* Font family */}
+            <div>
+              <p className="text-[10px] text-white/30 mb-2">Schriftart</p>
+              <FontPicker
+                value={element.fontFamily ?? "Inter"}
+                onChange={(family) => update({ fontFamily: family })}
               />
             </div>
 

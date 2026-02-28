@@ -111,6 +111,7 @@ function ElementRenderer({
           color: element.color,
           wordBreak: "break-word",
           whiteSpace: "pre-wrap",
+          fontFamily: element.fontFamily ?? "Inter, sans-serif",
         }}
       >
         {element.text}

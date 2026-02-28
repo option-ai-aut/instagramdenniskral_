@@ -31,9 +31,9 @@ import { getDb, newId, now } from "@/lib/db";
 import { SYSTEM_USER_ID } from "@/lib/auth";
 import type { Slide, TextElement } from "@/store/canvasStore";
 
-const nanoid = () => Math.random().toString(36).slice(2, 11);
+import { nanoid } from "@/lib/nanoid";
 
-// Built-in template definitions (mirrors canvasStore.ts)
+// Built-in template definitions (mirrors canvasStore.ts – fonts are fixed per template)
 function getBuiltinTemplate(id: string): Slide[] | null {
   const templates: Record<string, Slide[]> = {
     progress: [
@@ -42,10 +42,10 @@ function getBuiltinTemplate(id: string): Slide[] | null {
         background: { type: "gradient", gradient: "linear-gradient(135deg, #0a0a0f 0%, #1a1224 100%)" },
         aspectRatio: "4:5",
         elements: [
-          { id: nanoid(), type: "tag", text: "BUILD IN PUBLIC", fontSize: 11, fontWeight: "semibold", color: "#a78bfa", align: "center", x: 50, y: 15 },
-          { id: nanoid(), type: "header", text: "Was ich diese Woche gebaut habe", fontSize: 32, fontWeight: "extrabold", color: "#ffffff", align: "center", x: 50, y: 40 },
-          { id: nanoid(), type: "subtitle", text: "Von 0 auf 1.000 Nutzer in 30 Tagen", fontSize: 16, fontWeight: "normal", color: "rgba(255,255,255,0.6)", align: "center", x: 50, y: 62 },
-          { id: nanoid(), type: "body", text: "@denniskral_", fontSize: 12, fontWeight: "medium", color: "rgba(255,255,255,0.3)", align: "center", x: 50, y: 88 },
+          { id: nanoid(), type: "tag",      text: "BUILD IN PUBLIC",                    fontSize: 11, fontWeight: "semibold", fontFamily: "Montserrat",       color: "#a78bfa",              align: "center", x: 50, y: 15 },
+          { id: nanoid(), type: "header",   text: "Was ich diese Woche gebaut habe",    fontSize: 32, fontWeight: "extrabold",fontFamily: "Playfair Display",  color: "#ffffff",              align: "center", x: 50, y: 40 },
+          { id: nanoid(), type: "subtitle", text: "Von 0 auf 1.000 Nutzer in 30 Tagen", fontSize: 16, fontWeight: "normal",   fontFamily: "Inter",             color: "rgba(255,255,255,0.6)",align: "center", x: 50, y: 62 },
+          { id: nanoid(), type: "body",     text: "@denniskral_",                       fontSize: 12, fontWeight: "medium",   fontFamily: "Inter",             color: "rgba(255,255,255,0.3)",align: "center", x: 50, y: 88 },
         ],
       },
     ],
@@ -55,10 +55,10 @@ function getBuiltinTemplate(id: string): Slide[] | null {
         background: { type: "gradient", gradient: "linear-gradient(135deg, #0a0a0f 0%, #0f1a24 100%)" },
         aspectRatio: "4:5",
         elements: [
-          { id: nanoid(), type: "tag", text: "PRO TIPP", fontSize: 11, fontWeight: "semibold", color: "#34d399", align: "center", x: 50, y: 15 },
-          { id: nanoid(), type: "header", text: "Dein Titel hier", fontSize: 34, fontWeight: "extrabold", color: "#ffffff", align: "center", x: 50, y: 40 },
-          { id: nanoid(), type: "subtitle", text: "Kurze prägnante Beschreibung in 1-2 Sätzen.", fontSize: 15, fontWeight: "normal", color: "rgba(255,255,255,0.55)", align: "center", x: 50, y: 64 },
-          { id: nanoid(), type: "body", text: "@denniskral_", fontSize: 12, fontWeight: "medium", color: "rgba(255,255,255,0.3)", align: "center", x: 50, y: 88 },
+          { id: nanoid(), type: "tag",      text: "PRO TIPP",                                       fontSize: 11, fontWeight: "semibold", fontFamily: "Montserrat",  color: "#34d399",               align: "center", x: 50, y: 15 },
+          { id: nanoid(), type: "header",   text: "Dein Titel hier",                                fontSize: 34, fontWeight: "extrabold",fontFamily: "Bebas Neue",   color: "#ffffff",               align: "center", x: 50, y: 40 },
+          { id: nanoid(), type: "subtitle", text: "Kurze prägnante Beschreibung in 1-2 Sätzen.",    fontSize: 15, fontWeight: "normal",   fontFamily: "Poppins",      color: "rgba(255,255,255,0.55)",align: "center", x: 50, y: 64 },
+          { id: nanoid(), type: "body",     text: "@denniskral_",                                   fontSize: 12, fontWeight: "medium",   fontFamily: "Inter",        color: "rgba(255,255,255,0.3)", align: "center", x: 50, y: 88 },
         ],
       },
     ],
@@ -68,10 +68,10 @@ function getBuiltinTemplate(id: string): Slide[] | null {
         background: { type: "gradient", gradient: "linear-gradient(160deg, #0a0a0f 0%, #1a1500 60%, #0a0a0f 100%)" },
         aspectRatio: "4:5",
         elements: [
-          { id: nanoid(), type: "tag", text: "LUXURY · CARS · LIFESTYLE", fontSize: 10, fontWeight: "semibold", color: "#fbbf24", align: "center", x: 50, y: 15 },
-          { id: nanoid(), type: "header", text: "Dein Headline", fontSize: 36, fontWeight: "extrabold", color: "#ffffff", align: "center", x: 50, y: 42 },
-          { id: nanoid(), type: "subtitle", text: "Subtitel oder Zitat kommt hier hin.", fontSize: 15, fontWeight: "normal", color: "rgba(255,255,255,0.5)", align: "center", x: 50, y: 63 },
-          { id: nanoid(), type: "body", text: "@denniskral_", fontSize: 12, fontWeight: "medium", color: "rgba(255,255,255,0.25)", align: "center", x: 50, y: 88 },
+          { id: nanoid(), type: "tag",      text: "LUXURY · CARS · LIFESTYLE",            fontSize: 10, fontWeight: "semibold", fontFamily: "Cinzel",              color: "#fbbf24",               align: "center", x: 50, y: 15 },
+          { id: nanoid(), type: "header",   text: "Dein Headline",                        fontSize: 36, fontWeight: "bold",     fontFamily: "Cormorant Garamond",  color: "#ffffff",               align: "center", x: 50, y: 42 },
+          { id: nanoid(), type: "subtitle", text: "Subtitel oder Zitat kommt hier hin.",  fontSize: 15, fontWeight: "normal",   fontFamily: "Lora",                color: "rgba(255,255,255,0.5)", align: "center", x: 50, y: 63 },
+          { id: nanoid(), type: "body",     text: "@denniskral_",                         fontSize: 12, fontWeight: "medium",   fontFamily: "Inter",               color: "rgba(255,255,255,0.25)",align: "center", x: 50, y: 88 },
         ],
       },
     ],

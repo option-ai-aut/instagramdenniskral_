@@ -9,6 +9,7 @@ import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 import { getDb } from "@/lib/db";
 import { SYSTEM_USER_ID } from "@/lib/auth";
+import { collectSatoriFonts } from "@/lib/satori-fonts";
 import type { Slide, TextElement } from "@/store/canvasStore";
 
 export const runtime = "edge";
@@ -75,8 +76,10 @@ export async function GET(
     const height = getHeight(slide.aspectRatio ?? "4:5");
     const bgStyle = buildBackground(slide);
 
-    // Build element JSX data
     const elements = (slide.elements ?? []) as TextElement[];
+
+    // Load all required fonts for this slide
+    const fonts = await collectSatoriFonts(elements);
 
     const imageResponse = new ImageResponse(
       (
@@ -121,6 +124,7 @@ export async function GET(
                     style={{
                       fontSize: el.fontSize ?? 16,
                       fontWeight: fontWeightNum(el.fontWeight ?? "normal"),
+                      fontFamily: el.fontFamily ?? "Inter",
                       color: el.color ?? "#ffffff",
                       textAlign,
                       lineHeight: 1.3,
@@ -140,6 +144,7 @@ export async function GET(
       {
         width: W,
         height,
+        fonts,
       }
     );
 
