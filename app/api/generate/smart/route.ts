@@ -43,7 +43,7 @@ Do not add text overlays. Return only the edited image.`;
     if (isRealDbId) {
       try {
         const path = `${SYSTEM_USER_ID}/results/${img.imageItemId}-${Date.now()}.png`;
-        const resultUrl = await uploadBase64ToSupabase(result.base64, result.mimeType, path);
+        const resultUrl = await uploadBase64ToSupabase(result.base64, path, result.mimeType);
         await db
           .from("ImageItem")
           .update({ resultUrl, status: "done", prompt: metaPrompt, updatedAt: now() })

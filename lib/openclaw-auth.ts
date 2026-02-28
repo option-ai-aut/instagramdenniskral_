@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 
+/**
+ * Constant-time comparison: both inputs are HMAC-SHA256 hashed first
+ * to normalize to fixed length and prevent timing leaks.
+ */
 function safeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
   try {
-    return timingSafeEqual(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
+    const { createHmac } = require("crypto") as typeof import("crypto");
+    const key = Buffer.from("instabuilder-compare-key");
+    const hashA = createHmac("sha256", key).update(a).digest();
+    const hashB = createHmac("sha256", key).update(b).digest();
+    return timingSafeEqual(hashA, hashB);
   } catch {
     return false;
   }

@@ -231,7 +231,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
             ? { ...sl, elements: sl.elements.filter((el) => el.id !== elementId) }
             : sl
         ),
-        selectedElementId: get().selectedElementId === elementId ? null : get().selectedElementId,
+        selectedElementId: s.selectedElementId === elementId ? null : s.selectedElementId,
       })),
 
     loadTemplate: (templateId) => {

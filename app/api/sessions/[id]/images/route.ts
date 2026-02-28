@@ -35,9 +35,10 @@ export async function POST(
     }
 
     const safeMime = typeof mimeType === "string" ? mimeType : "image/jpeg";
+    const ext = safeMime.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
     const itemId = newId();
-    const path = `${SYSTEM_USER_ID}/originals/${sessionId}-${Date.now()}.jpg`;
-    const originalUrl = await uploadBase64ToSupabase(imageBase64, safeMime, path);
+    const path = `${SYSTEM_USER_ID}/originals/${sessionId}-${Date.now()}.${ext}`;
+    const originalUrl = await uploadBase64ToSupabase(imageBase64, path, safeMime);
 
     const ts = now();
     const { data: item, error } = await db

@@ -28,22 +28,25 @@ export default function ImageEditorPage() {
     if (initDone.current) return;
     initDone.current = true;
 
-    fetch("/api/sessions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Session " + new Date().toLocaleDateString("de-DE") }),
-    })
-      .then((r) => r.json())
-      .then(({ session }) => {
-        if (session?.id) setSessionId(session.id);
+    // Only create a new session if none exists yet (prevents recreation on back-navigation)
+    if (!sessionId) {
+      fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Session " + new Date().toLocaleDateString("de-DE") }),
       })
-      .catch(console.error);
+        .then((r) => r.json())
+        .then(({ session }) => {
+          if (session?.id) setSessionId(session.id);
+        })
+        .catch(console.error);
+    }
 
     fetch("/api/prompts")
       .then((r) => r.json())
       .then(({ prompts }) => setSavedPromptsCount(prompts?.length ?? 0))
       .catch(() => setSavedPromptsCount(0));
-  }, [setSessionId]);
+  }, [setSessionId, sessionId]);
 
   const generateSingle = async (imageId: string) => {
     const img = images.find((i) => i.id === imageId);

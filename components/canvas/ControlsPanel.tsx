@@ -23,8 +23,6 @@ type Props = {
   deletingId: string | null;
   overwritingId: string | null;
   savedCarouselId: string | null;
-  carouselTitle: string;
-  currentSlides: Slide[];
   builtinTemplates: Template[];
   onLoadCarousel: (c: SavedCarousel) => void;
   onDeleteCarousel: (id: string) => void;

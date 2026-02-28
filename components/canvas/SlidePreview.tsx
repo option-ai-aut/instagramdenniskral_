@@ -27,7 +27,7 @@ const ALIGN_MAP: Record<string, string> = {
 type Props = {
   slide: Slide;
   selectedElementId?: string | null;
-  onSelectElement?: (id: string) => void;
+  onSelectElement?: (id: string | null) => void;
   scale?: number;
   interactive?: boolean;
 };
@@ -54,7 +54,7 @@ export const SlidePreview = forwardRef<HTMLDivElement, Props>(
         ref={ref}
         className={cn("relative overflow-hidden w-full", ASPECT_RATIOS[slide.aspectRatio])}
         style={backgroundStyle}
-        onClick={() => interactive && onSelectElement?.(null as unknown as string)}
+        onClick={() => interactive && onSelectElement?.(null)}
       >
         {slide.elements.map((el) => (
           <ElementRenderer

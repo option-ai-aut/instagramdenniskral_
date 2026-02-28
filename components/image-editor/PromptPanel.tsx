@@ -137,7 +137,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
               ) : (
                 <SparklesIcon size={11} />
               )}
-              Alle senden ({images.filter(i => i.prompt).length}/{images.length})
+              Alle senden ({images.filter(i => i.prompt && i.status !== "done" && i.status !== "processing").length}/{images.length})
             </button>
           )}
         </div>
@@ -276,7 +276,6 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
                     className="group flex items-start gap-2 w-full text-left text-[11px] text-white/40 hover:text-white/70 px-3 py-2 rounded-lg border border-transparent hover:border-white/[0.08] hover:bg-white/[0.03] transition-all cursor-pointer"
                     onClick={() => {
                       setPrompt(selected.id, p.text);
-                      updateImage(selected.id, { prompt: p.text });
                     }}
                   >
                     <span className="flex-1 leading-relaxed">{p.text}</span>

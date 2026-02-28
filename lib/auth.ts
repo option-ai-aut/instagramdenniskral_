@@ -1,14 +1,18 @@
 import { cookies } from "next/headers";
 import { timingSafeEqual } from "crypto";
 
-/** Constant-time string comparison using Node.js crypto. */
+/**
+ * Constant-time string comparison using Node.js crypto.
+ * Both inputs are hashed with HMAC-SHA256 to normalize to a fixed length,
+ * preventing timing leaks from length differences.
+ */
 function safeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
   try {
-    // Pad to same length then use timingSafeEqual
-    const bufA = Buffer.from(a, "utf8");
-    const bufB = Buffer.from(b, "utf8");
-    return timingSafeEqual(bufA, bufB);
+    const { createHmac } = require("crypto") as typeof import("crypto");
+    const key = Buffer.from("instabuilder-compare-key");
+    const hashA = createHmac("sha256", key).update(a).digest();
+    const hashB = createHmac("sha256", key).update(b).digest();
+    return timingSafeEqual(hashA, hashB);
   } catch {
     return false;
   }

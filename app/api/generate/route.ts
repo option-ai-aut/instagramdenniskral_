@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     if (isRealDbId) {
       try {
         const path = `${SYSTEM_USER_ID}/results/${imageItemId}-${Date.now()}.png`;
-        const resultUrl = await uploadBase64ToSupabase(result.base64, result.mimeType, path);
+        const resultUrl = await uploadBase64ToSupabase(result.base64, path, result.mimeType);
         await db
           .from("ImageItem")
           .update({ resultUrl, status: "done", updatedAt: now() })

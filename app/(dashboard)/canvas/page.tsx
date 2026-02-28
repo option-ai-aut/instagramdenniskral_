@@ -75,6 +75,8 @@ function CanvasInner() {
         body: JSON.stringify({ title: carouselTitle, slidesJson: slides }),
       });
 
+      if (!res.ok) throw new Error(`Speichern fehlgeschlagen (${res.status})`);
+
       if (isUpdate) {
         setSavedCarousels((prev) =>
           prev.map((c) =>
@@ -108,7 +110,8 @@ function CanvasInner() {
   const handleDeleteCarousel = useCallback(async (id: string) => {
     setDeletingId(id);
     try {
-      await fetch(`/api/carousel/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/carousel/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`Löschen fehlgeschlagen (${res.status})`);
       setSavedCarousels((prev) => prev.filter((c) => c.id !== id));
       if (savedCarouselId === id) setSavedId(null);
     } catch {
@@ -121,11 +124,12 @@ function CanvasInner() {
   const handleOverwriteCarousel = useCallback(async (id: string) => {
     setOverwritingId(id);
     try {
-      await fetch(`/api/carousel/${id}`, {
+      const res = await fetch(`/api/carousel/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: carouselTitle, slidesJson: slides }),
       });
+      if (!res.ok) throw new Error(`Überschreiben fehlgeschlagen (${res.status})`);
       setSavedCarousels((prev) =>
         prev.map((c) =>
           c.id === id
@@ -135,10 +139,11 @@ function CanvasInner() {
       );
     } catch (e) {
       console.error(e);
+      fetchCarousels();
     } finally {
       setOverwritingId(null);
     }
-  }, [carouselTitle, slides]);
+  }, [carouselTitle, slides, fetchCarousels]);
 
   const handleLoadTemplate = useCallback((id: string) => {
     loadTemplate(id);
@@ -155,10 +160,11 @@ function CanvasInner() {
   const handleExport = async () => {
     if (!slideRef.current) return;
     setExporting(true);
+    const originalSlideId = selectedSlideId;
     try {
       for (let i = 0; i < slides.length; i++) {
         useCanvasStore.getState().selectSlide(slides[i].id);
-        await new Promise((r) => setTimeout(r, 100));
+        await new Promise((r) => setTimeout(r, 120));
         if (!slideRef.current) break;
         const dataUrl = await toPng(slideRef.current, { pixelRatio: 2 });
         const a = document.createElement("a");
@@ -168,6 +174,7 @@ function CanvasInner() {
         await new Promise((r) => setTimeout(r, 200));
       }
     } finally {
+      if (originalSlideId) useCanvasStore.getState().selectSlide(originalSlideId);
       setExporting(false);
     }
   };
@@ -175,7 +182,6 @@ function CanvasInner() {
   const controlsPanelProps = {
     tab, setTab,
     savedCarousels, loadingCarousels, deletingId, overwritingId, savedCarouselId,
-    carouselTitle, currentSlides: slides,
     builtinTemplates: templates,
     onLoadCarousel: handleLoadCarousel,
     onDeleteCarousel: handleDeleteCarousel,

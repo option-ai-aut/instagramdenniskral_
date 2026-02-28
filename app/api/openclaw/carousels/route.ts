@@ -91,9 +91,7 @@ export async function GET(req: NextRequest) {
       .eq("userId", SYSTEM_USER_ID)
       .order("updatedAt", { ascending: false });
 
-    const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-      ? `https://instagramdenniskral.vercel.app`
-      : "http://localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://instagramdenniskral.vercel.app";
 
     return NextResponse.json({
       carousels: (carousels ?? []).map((c) => {
@@ -157,15 +155,22 @@ export async function POST(req: NextRequest) {
       slides = Array.isArray(carousel.slidesJson) ? carousel.slidesJson : [];
     }
 
-    // Apply text overrides
+    // Apply text overrides (immutable – avoids mutating template objects)
     const overrides = Array.isArray(textOverrides) ? textOverrides : [];
-    for (const override of overrides) {
-      const { slideIndex, elementType, text } = override;
-      if (typeof slideIndex !== "number" || !elementType || typeof text !== "string") continue;
-      const slide = slides[slideIndex];
-      if (!slide) continue;
-      const el = (slide.elements as TextElement[]).find((e) => e.type === elementType);
-      if (el) el.text = text.slice(0, 500);
+    if (overrides.length > 0) {
+      slides = slides.map((slide, idx) => {
+        const slideOverrides = overrides.filter(
+          (o) => typeof o.slideIndex === "number" && o.slideIndex === idx && o.elementType && typeof o.text === "string"
+        );
+        if (slideOverrides.length === 0) return slide;
+        return {
+          ...slide,
+          elements: (slide.elements as TextElement[]).map((el) => {
+            const override = slideOverrides.find((o) => o.elementType === el.type);
+            return override ? { ...el, text: override.text.slice(0, 500) } : el;
+          }),
+        };
+      });
     }
 
     // Generate IDs for all slides/elements
@@ -192,7 +197,7 @@ export async function POST(req: NextRequest) {
 
     if (error) throw new Error(error.message);
 
-    const baseUrl = "https://instagramdenniskral.vercel.app";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://instagramdenniskral.vercel.app";
     const slideImageUrls = finalSlides.map((_: unknown, i: number) =>
       `${baseUrl}/api/openclaw/carousels/${carousel.id}/slides/${i}/image.png`
     );
