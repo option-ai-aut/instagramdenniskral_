@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { toPng } from "html-to-image";
 import { DownloadIcon, SaveIcon, LoaderIcon, CheckIcon, BookmarkIcon, LayoutTemplateIcon } from "lucide-react";
 import { useCanvasStore } from "@/store/canvasStore";
@@ -12,6 +13,7 @@ import { cn } from "@/lib/utils";
 type MobileView = "preview" | "slides" | "controls";
 
 export default function CanvasPage() {
+  const searchParams = useSearchParams();
   const {
     slides, selectedSlideId, selectedElementId, carouselTitle, savedCarouselId,
     selectElement, setTitle, setSavedId, templates, loadTemplate, loadCarousel, newCarousel,
@@ -44,6 +46,21 @@ export default function CanvasPage() {
   }, []);
 
   useEffect(() => { fetchCarousels(); }, [fetchCarousels]);
+
+  // Auto-load carousel when ?load=:id is in the URL (e.g. from Openclaw)
+  useEffect(() => {
+    const loadId = searchParams.get("load");
+    if (!loadId) return;
+    fetch(`/api/carousel/${loadId}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data?.carousel) return;
+        const c = data.carousel;
+        loadCarousel(c.id, c.title, Array.isArray(c.slidesJson) ? c.slidesJson : []);
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
