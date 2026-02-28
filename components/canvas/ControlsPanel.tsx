@@ -1,6 +1,7 @@
 "use client";
 
-import { LayoutTemplateIcon, LoaderIcon, PlusIcon, Trash2Icon, FolderOpenIcon, SaveIcon } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { LayoutTemplateIcon, LoaderIcon, PlusIcon, Trash2Icon, FolderOpenIcon, SaveIcon, CopyIcon, PencilIcon, CheckIcon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ElementControls } from "./ElementControls";
 import { BackgroundControls } from "./BackgroundControls";
@@ -22,11 +23,14 @@ type Props = {
   loadingCarousels: boolean;
   deletingId: string | null;
   overwritingId: string | null;
+  duplicatingId: string | null;
   savedCarouselId: string | null;
   builtinTemplates: Template[];
   onLoadCarousel: (c: SavedCarousel) => void;
   onDeleteCarousel: (id: string) => void;
   onOverwriteCarousel: (id: string) => void;
+  onRenameCarousel: (id: string, title: string) => void;
+  onDuplicateCarousel: (c: SavedCarousel) => void;
   onNewCarousel: () => void;
   onLoadTemplate: (id: string) => void;
 };
@@ -39,10 +43,34 @@ const BUILT_IN_ICONS: Record<string, string> = {
 
 export function ControlsPanel({
   tab, setTab,
-  savedCarousels, loadingCarousels, deletingId, overwritingId, savedCarouselId,
+  savedCarousels, loadingCarousels, deletingId, overwritingId, duplicatingId, savedCarouselId,
   builtinTemplates,
-  onLoadCarousel, onDeleteCarousel, onOverwriteCarousel, onNewCarousel, onLoadTemplate,
+  onLoadCarousel, onDeleteCarousel, onOverwriteCarousel, onRenameCarousel, onDuplicateCarousel, onNewCarousel, onLoadTemplate,
 }: Props) {
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (renamingId && renameInputRef.current) {
+      renameInputRef.current.focus();
+      renameInputRef.current.select();
+    }
+  }, [renamingId]);
+
+  const startRename = (c: SavedCarousel) => {
+    setRenamingId(c.id);
+    setRenameValue(c.title);
+  };
+
+  const commitRename = () => {
+    if (!renamingId) return;
+    const trimmed = renameValue.trim();
+    if (trimmed) onRenameCarousel(renamingId, trimmed);
+    setRenamingId(null);
+  };
+
+  const cancelRename = () => setRenamingId(null);
   const tabs: { id: ControlsTab; label: string }[] = [
     { id: "elements", label: "Text" },
     { id: "background", label: "Design" },
@@ -104,6 +132,7 @@ export function ControlsPanel({
                   {savedCarousels.map((c) => {
                     const isActive = savedCarouselId === c.id;
                     const slideCount = Array.isArray(c.slidesJson) ? c.slidesJson.length : 1;
+                    const isRenaming = renamingId === c.id;
                     return (
                       <div
                         key={c.id}
@@ -115,51 +144,100 @@ export function ControlsPanel({
                         )}
                       >
                         {/* Title row */}
-                        <button
-                          className="w-full flex items-center gap-2 px-3 py-2.5 text-left"
-                          onClick={() => onLoadCarousel(c)}
-                        >
+                        <div className="flex items-center gap-2 px-3 py-2.5">
                           <FolderOpenIcon size={12} className={cn("flex-shrink-0", isActive ? "text-[#60a5fa]" : "text-white/25")} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs text-white/70 truncate">{c.title}</p>
-                            <p className="text-[10px] text-white/25">
-                              {slideCount} Slide{slideCount !== 1 ? "s" : ""} · {new Date(c.updatedAt).toLocaleDateString("de-DE")}
-                            </p>
-                          </div>
-                          {isActive && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#1d4ed8]/20 text-[#60a5fa] border border-[#1d4ed8]/30 flex-shrink-0">
-                              Aktiv
-                            </span>
-                          )}
-                        </button>
 
-                        {/* Action buttons */}
-                        <div className="flex items-center gap-1 px-3 pb-2">
-                          {isActive && (
+                          {isRenaming ? (
+                            <div className="flex-1 flex items-center gap-1 min-w-0">
+                              <input
+                                ref={renameInputRef}
+                                value={renameValue}
+                                onChange={(e) => setRenameValue(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") commitRename();
+                                  if (e.key === "Escape") cancelRename();
+                                }}
+                                className="flex-1 min-w-0 bg-white/[0.06] border border-white/15 rounded-lg px-2 py-0.5 text-xs text-white/80 focus:outline-none focus:border-[#1d4ed8]/50"
+                                maxLength={200}
+                              />
+                              <button onClick={commitRename} className="text-[#60a5fa] hover:text-white transition-colors flex-shrink-0">
+                                <CheckIcon size={12} />
+                              </button>
+                              <button onClick={cancelRename} className="text-white/30 hover:text-white/60 transition-colors flex-shrink-0">
+                                <XIcon size={12} />
+                              </button>
+                            </div>
+                          ) : (
                             <button
-                              onClick={() => onOverwriteCarousel(c.id)}
-                              disabled={overwritingId === c.id}
-                              className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border border-[#1d4ed8]/20 text-[#60a5fa]/70 hover:text-[#60a5fa] hover:border-[#1d4ed8]/40 transition-all disabled:opacity-40"
+                              className="flex-1 min-w-0 text-left"
+                              onClick={() => onLoadCarousel(c)}
                             >
-                              {overwritingId === c.id
-                                ? <LoaderIcon size={9} className="animate-spin" />
-                                : <SaveIcon size={9} />
-                              }
-                              Überschreiben
+                              <p className="text-xs text-white/70 truncate">{c.title}</p>
+                              <p className="text-[10px] text-white/25">
+                                {slideCount} Slide{slideCount !== 1 ? "s" : ""} · {new Date(c.updatedAt).toLocaleDateString("de-DE")}
+                              </p>
                             </button>
                           )}
-                          <button
-                            onClick={() => onDeleteCarousel(c.id)}
-                            disabled={deletingId === c.id}
-                            className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border border-white/[0.06] text-white/25 hover:text-red-400 hover:border-red-500/30 transition-all disabled:opacity-40 ml-auto"
-                          >
-                            {deletingId === c.id
-                              ? <LoaderIcon size={9} className="animate-spin" />
-                              : <Trash2Icon size={9} />
-                            }
-                            Löschen
-                          </button>
+
+                          {!isRenaming && (
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              {isActive && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#1d4ed8]/20 text-[#60a5fa] border border-[#1d4ed8]/30">
+                                  Aktiv
+                                </span>
+                              )}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); startRename(c); }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 rounded flex items-center justify-center text-white/30 hover:text-white/70"
+                                title="Umbenennen"
+                              >
+                                <PencilIcon size={10} />
+                              </button>
+                            </div>
+                          )}
                         </div>
+
+                        {/* Action buttons */}
+                        {!isRenaming && (
+                          <div className="flex items-center gap-1 px-3 pb-2">
+                            {isActive && (
+                              <button
+                                onClick={() => onOverwriteCarousel(c.id)}
+                                disabled={overwritingId === c.id}
+                                className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border border-[#1d4ed8]/20 text-[#60a5fa]/70 hover:text-[#60a5fa] hover:border-[#1d4ed8]/40 transition-all disabled:opacity-40"
+                              >
+                                {overwritingId === c.id
+                                  ? <LoaderIcon size={9} className="animate-spin" />
+                                  : <SaveIcon size={9} />
+                                }
+                                Überschreiben
+                              </button>
+                            )}
+                            <button
+                              onClick={() => onDuplicateCarousel(c)}
+                              disabled={duplicatingId === c.id}
+                              className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border border-white/[0.06] text-white/30 hover:text-white/60 hover:border-white/20 transition-all disabled:opacity-40"
+                              title="Duplizieren"
+                            >
+                              {duplicatingId === c.id
+                                ? <LoaderIcon size={9} className="animate-spin" />
+                                : <CopyIcon size={9} />
+                              }
+                              Kopie
+                            </button>
+                            <button
+                              onClick={() => onDeleteCarousel(c.id)}
+                              disabled={deletingId === c.id}
+                              className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border border-white/[0.06] text-white/25 hover:text-red-400 hover:border-red-500/30 transition-all disabled:opacity-40 ml-auto"
+                            >
+                              {deletingId === c.id
+                                ? <LoaderIcon size={9} className="animate-spin" />
+                                : <Trash2Icon size={9} />
+                              }
+                              Löschen
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}

@@ -31,6 +31,7 @@ function CanvasInner() {
   const [loadingCarousels, setLoadingCarousels] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [overwritingId, setOverwritingId] = useState<string | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
 
   const fetchCarousels = useCallback(async () => {
     setLoadingCarousels(true);
@@ -145,6 +146,36 @@ function CanvasInner() {
     }
   }, [carouselTitle, slides, fetchCarousels]);
 
+  const handleRenameCarousel = useCallback(async (id: string, title: string) => {
+    setSavedCarousels((prev) => prev.map((c) => c.id === id ? { ...c, title } : c));
+    try {
+      await fetch(`/api/carousel/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+    } catch {
+      fetchCarousels();
+    }
+  }, [fetchCarousels]);
+
+  const handleDuplicateCarousel = useCallback(async (c: SavedCarousel) => {
+    setDuplicatingId(c.id);
+    try {
+      const res = await fetch("/api/carousel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: `Kopie – ${c.title}`, slidesJson: c.slidesJson }),
+      });
+      if (!res.ok) throw new Error("Duplizieren fehlgeschlagen");
+      await fetchCarousels();
+    } catch {
+      fetchCarousels();
+    } finally {
+      setDuplicatingId(null);
+    }
+  }, [fetchCarousels]);
+
   const handleLoadTemplate = useCallback((id: string) => {
     loadTemplate(id);
     setTab("elements");
@@ -181,11 +212,13 @@ function CanvasInner() {
 
   const controlsPanelProps = {
     tab, setTab,
-    savedCarousels, loadingCarousels, deletingId, overwritingId, savedCarouselId,
+    savedCarousels, loadingCarousels, deletingId, overwritingId, duplicatingId, savedCarouselId,
     builtinTemplates: templates,
     onLoadCarousel: handleLoadCarousel,
     onDeleteCarousel: handleDeleteCarousel,
     onOverwriteCarousel: handleOverwriteCarousel,
+    onRenameCarousel: handleRenameCarousel,
+    onDuplicateCarousel: handleDuplicateCarousel,
     onNewCarousel: handleNewCarousel,
     onLoadTemplate: handleLoadTemplate,
   };
