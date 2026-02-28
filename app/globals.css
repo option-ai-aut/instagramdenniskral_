@@ -24,6 +24,13 @@ body {
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* Prevent bounce scroll on iOS */
+  overscroll-behavior: none;
+}
+
+/* Safe area support for iPhone notch/home bar */
+body {
+  padding-top: env(safe-area-inset-top);
 }
 
 /* Scrollbar */

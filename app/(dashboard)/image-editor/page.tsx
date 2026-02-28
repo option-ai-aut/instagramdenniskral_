@@ -1,14 +1,25 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ImageList } from "@/components/image-editor/ImageList";
 import { PromptPanel } from "@/components/image-editor/PromptPanel";
 import { ResultPanel } from "@/components/image-editor/ResultPanel";
 import { useImageEditorStore } from "@/store/imageEditorStore";
 import { base64ToDataUrl } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { ImageIcon, SparklesIcon, StarIcon } from "lucide-react";
+
+type MobileTab = "images" | "prompt" | "result";
+
+const mobileTabs: { id: MobileTab; label: string; icon: React.ElementType }[] = [
+  { id: "images", label: "Bilder", icon: ImageIcon },
+  { id: "prompt", label: "Prompt", icon: SparklesIcon },
+  { id: "result", label: "Ergebnis", icon: StarIcon },
+];
 
 export default function ImageEditorPage() {
-  const { images, sessionId, setSessionId, updateImage } = useImageEditorStore();
+  const { images, sessionId, setSessionId, updateImage, selectedId } = useImageEditorStore();
+  const [mobileTab, setMobileTab] = useState<MobileTab>("images");
   const initDone = useRef(false);
 
   useEffect(() => {
@@ -69,12 +80,10 @@ export default function ImageEditorPage() {
       const { resultBase64, mimeType } = await res.json();
       const resultDataUrl = base64ToDataUrl(resultBase64, mimeType);
 
-      updateImage(imageId, {
-        status: "done",
-        resultDataUrl,
-        resultBase64,
-        resultMimeType: mimeType,
-      });
+      updateImage(imageId, { status: "done", resultDataUrl, resultBase64, resultMimeType: mimeType });
+
+      // Auto-switch to result tab on mobile when done
+      setMobileTab("result");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Fehler";
       updateImage(imageId, { status: "error", error: message });
@@ -90,33 +99,96 @@ export default function ImageEditorPage() {
 
   const isGeneratingAll = images.some((img) => img.status === "processing");
 
+  // When user selects an image from list on mobile, auto-switch to prompt tab
+  const handleMobileImageSelect = () => {
+    setMobileTab("prompt");
+  };
+
   return (
-    <div className="flex h-full bg-grid">
+    <div className="flex flex-col h-full bg-grid">
       <div className="absolute inset-0 bg-gradient-to-br from-[#7c6af7]/[0.03] via-transparent to-transparent pointer-events-none" />
 
-      {/* Left – Image List */}
-      <div
-        className="w-[200px] flex-shrink-0 flex flex-col border-r glass relative z-10"
-        style={{ borderColor: "var(--glass-border)" }}
-      >
-        <ImageList />
+      {/* ── DESKTOP: 3-column layout ── */}
+      <div className="hidden md:flex flex-1 overflow-hidden relative z-10 h-full">
+        <div
+          className="w-[200px] flex-shrink-0 flex flex-col border-r glass"
+          style={{ borderColor: "var(--glass-border)" }}
+        >
+          <ImageList />
+        </div>
+        <div
+          className="flex-1 flex flex-col border-r glass"
+          style={{ borderColor: "var(--glass-border)" }}
+        >
+          <PromptPanel
+            onGenerate={generateSingle}
+            onGenerateAll={generateAll}
+            isGeneratingAll={isGeneratingAll}
+          />
+        </div>
+        <div className="w-[320px] flex-shrink-0 flex flex-col glass">
+          <ResultPanel />
+        </div>
       </div>
 
-      {/* Middle – Prompt */}
-      <div
-        className="flex-1 flex flex-col border-r glass relative z-10"
-        style={{ borderColor: "var(--glass-border)" }}
-      >
-        <PromptPanel
-          onGenerate={generateSingle}
-          onGenerateAll={generateAll}
-          isGeneratingAll={isGeneratingAll}
-        />
-      </div>
+      {/* ── MOBILE: Tab layout ── */}
+      <div className="flex md:hidden flex-col flex-1 overflow-hidden relative z-10">
+        {/* Tab bar */}
+        <div
+          className="flex-shrink-0 flex border-b"
+          style={{ background: "rgba(17,17,24,0.95)", borderColor: "var(--glass-border)" }}
+        >
+          {mobileTabs.map((tab) => {
+            const active = mobileTab === tab.id;
+            const selectedImg = images.find((i) => i.id === selectedId);
+            const badge =
+              tab.id === "images" && images.length > 0 ? images.length :
+              tab.id === "result" && selectedImg?.resultDataUrl ? "✓" : null;
 
-      {/* Right – Result */}
-      <div className="w-[320px] flex-shrink-0 flex flex-col glass relative z-10">
-        <ResultPanel />
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setMobileTab(tab.id)}
+                className={cn(
+                  "flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-all border-b-2 relative",
+                  active
+                    ? "text-[#a78bfa] border-[#7c6af7]"
+                    : "text-white/30 border-transparent"
+                )}
+              >
+                <tab.icon size={16} />
+                {tab.label}
+                {badge !== null && (
+                  <span className="absolute top-1.5 right-4 text-[9px] bg-[#7c6af7] text-white rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                    {badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tab content */}
+        <div className="flex-1 overflow-hidden">
+          {mobileTab === "images" && (
+            <div
+              className="h-full"
+              onClick={handleMobileImageSelect}
+            >
+              <ImageList />
+            </div>
+          )}
+          {mobileTab === "prompt" && (
+            <PromptPanel
+              onGenerate={async (id) => {
+                await generateSingle(id);
+              }}
+              onGenerateAll={generateAll}
+              isGeneratingAll={isGeneratingAll}
+            />
+          )}
+          {mobileTab === "result" && <ResultPanel />}
+        </div>
       </div>
     </div>
   );

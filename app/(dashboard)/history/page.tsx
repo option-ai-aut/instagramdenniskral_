@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { DownloadIcon, ImageIcon, LayoutIcon, RefreshCwIcon, LoaderIcon } from "lucide-react";
-import { formatDate, downloadDataUrl } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 type ImageItemDB = {
@@ -58,23 +58,23 @@ export default function HistoryPage() {
 
       {/* Header */}
       <div
-        className="px-6 py-4 border-b glass flex items-center justify-between relative z-10 flex-shrink-0"
+        className="px-4 sm:px-6 py-4 border-b glass flex flex-col sm:flex-row sm:items-center gap-3 relative z-10 flex-shrink-0"
         style={{ borderColor: "var(--glass-border)" }}
       >
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="text-base font-semibold gradient-text">History</h1>
           <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
             {allImages.length} Bilder · {carousels.length} Karussells
           </p>
         </div>
 
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 overflow-x-auto">
           {(["all", "images", "carousels"] as Filter[]).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
               className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
+                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all border whitespace-nowrap",
                 filter === f
                   ? "border-[#7c6af7]/40 bg-[#7c6af7]/10 text-[#a78bfa]"
                   : "border-white/[0.08] text-white/40 hover:border-white/20 hover:text-white/60"
@@ -86,17 +86,17 @@ export default function HistoryPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-6 relative z-10">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-6 relative z-10">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <LoaderIcon size={20} className="text-white/20 animate-spin" />
           </div>
         ) : (
-          <div className="space-y-8">
-            {/* Images section */}
+          <div className="space-y-6 sm:space-y-8">
+            {/* Images */}
             {(filter === "all" || filter === "images") && (
               <div>
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-3 sm:mb-4">
                   <ImageIcon size={14} className="text-[#7c6af7]" />
                   <h2 className="text-sm font-medium text-white/70">
                     KI-Bilder <span className="text-white/30">({allImages.length})</span>
@@ -108,7 +108,7 @@ export default function HistoryPage() {
                     <p className="text-sm text-white/20">Noch keine Bilder generiert</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
                     {allImages.map((img) => (
                       <ImageHistoryCard key={img.id} img={img} />
                     ))}
@@ -117,10 +117,10 @@ export default function HistoryPage() {
               </div>
             )}
 
-            {/* Carousels section */}
+            {/* Carousels */}
             {(filter === "all" || filter === "carousels") && (
               <div>
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-3 sm:mb-4">
                   <LayoutIcon size={14} className="text-[#7c6af7]" />
                   <h2 className="text-sm font-medium text-white/70">
                     Karussells <span className="text-white/30">({carousels.length})</span>
@@ -132,7 +132,7 @@ export default function HistoryPage() {
                     <p className="text-sm text-white/20">Noch keine Karussells erstellt</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
                     {carousels.map((carousel) => (
                       <CarouselHistoryCard key={carousel.id} carousel={carousel} />
                     ))}
@@ -149,32 +149,35 @@ export default function HistoryPage() {
 
 function ImageHistoryCard({ img }: { img: ImageItemDB & { sessionName: string } }) {
   return (
-    <div className="group relative rounded-xl overflow-hidden border border-white/[0.06] hover:border-white/[0.12] transition-all">
+    <div className="group relative rounded-xl overflow-hidden border border-white/[0.06] hover:border-white/[0.12] active:scale-[0.97] transition-all">
       <div className="aspect-square relative">
         <Image
           src={img.resultUrl!}
           alt="Generated image"
           fill
           className="object-cover"
-          sizes="200px"
+          sizes="(max-width: 640px) 50vw, 200px"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
-          <p className="text-[10px] text-white/70 mb-1 line-clamp-2">{img.prompt ?? ""}</p>
+        {/* Mobile: always show actions, desktop: show on hover */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent opacity-0 group-hover:opacity-100 sm:group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
+          <p className="text-[10px] text-white/70 mb-1.5 line-clamp-2">{img.prompt ?? ""}</p>
           <div className="flex gap-1">
             <a
               href={img.resultUrl}
               download
-              className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg bg-white/10 text-[10px] text-white/70 hover:text-white hover:bg-white/20 transition-all"
+              className="flex-1 flex items-center justify-center py-1.5 rounded-lg bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition-all"
+              onClick={(e) => e.stopPropagation()}
             >
-              <DownloadIcon size={10} />
+              <DownloadIcon size={12} />
             </a>
             <a
               href={img.originalUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1 py-1 rounded-lg bg-white/10 text-[10px] text-white/70 hover:text-white hover:bg-white/20 transition-all"
+              className="flex-1 flex items-center justify-center py-1.5 rounded-lg bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition-all"
+              onClick={(e) => e.stopPropagation()}
             >
-              <RefreshCwIcon size={10} />
+              <RefreshCwIcon size={12} />
             </a>
           </div>
         </div>
@@ -191,9 +194,9 @@ function CarouselHistoryCard({ carousel }: { carousel: CarouselDB }) {
   const slides = Array.isArray(carousel.slidesJson) ? carousel.slidesJson : [];
 
   return (
-    <div className="group relative rounded-xl overflow-hidden border border-white/[0.06] hover:border-[#7c6af7]/30 transition-all cursor-pointer">
+    <div className="group relative rounded-xl overflow-hidden border border-white/[0.06] hover:border-[#7c6af7]/30 active:scale-[0.97] transition-all cursor-pointer">
       <div
-        className="aspect-[4/5] flex items-center justify-center relative"
+        className="aspect-[4/5] flex items-center justify-center"
         style={{ background: "linear-gradient(135deg, #111118, #1a1a24)" }}
       >
         <div className="text-center px-4">
