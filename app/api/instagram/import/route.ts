@@ -3,7 +3,9 @@
  *
  * Fetches images from a public Instagram post URL.
  * Supports single posts and carousels.
- * Uses multiple extraction strategies (og:image, page JSON, oEmbed).
+ *
+ * Key fix: deduplicates by CDN filename (not URL) to avoid the same image
+ * appearing multiple times in different resolutions (s640x640, s1080x1080, etc.)
  *
  * Body: { url: string }
  * Response: { images: [{ base64, mimeType, index }], isCarousel: boolean, postUrl: string }
@@ -17,6 +19,40 @@ const MOBILE_UA =
 function extractShortcode(url: string): string | null {
   const m = url.match(/instagram\.com\/(?:p|reel|tv|reels)\/([A-Za-z0-9_-]+)/);
   return m?.[1] ?? null;
+}
+
+/** Extract the CDN filename (without query params) as a stable identity key. */
+function cdnKey(url: string): string {
+  try {
+    return new URL(url).pathname.split("/").pop() ?? url;
+  } catch {
+    return url;
+  }
+}
+
+/** Prefer full-resolution URLs over thumbnails when deduplicating. */
+function qualityScore(url: string): number {
+  if (url.includes("s150x150") || url.includes("_p150x150")) return 0;
+  if (url.includes("s240x240") || url.includes("s320x320")) return 1;
+  if (url.includes("s480x480") || url.includes("s640x640")) return 2;
+  if (url.includes("s1080x1080")) return 3;
+  return 4; // no size constraint = best
+}
+
+/**
+ * Merge a candidate URL into a map keyed by CDN filename.
+ * Keeps the highest-quality variant per unique image.
+ */
+function mergeUrl(map: Map<string, string>, url: string): void {
+  if (!url.startsWith("https://")) return;
+  // Skip profile pictures and obvious thumbnails
+  if (url.includes("profile") || url.includes("s150x150") || url.includes("_p150x150")) return;
+
+  const key = cdnKey(url);
+  const existing = map.get(key);
+  if (!existing || qualityScore(url) > qualityScore(existing)) {
+    map.set(key, url);
+  }
 }
 
 async function downloadImage(
@@ -42,89 +78,78 @@ async function downloadImage(
   }
 }
 
-/** Strategy 1: Instagram oEmbed (works for public posts, returns first image only) */
-async function fetchViaOembed(
-  postUrl: string
-): Promise<string[]> {
+/** oEmbed fallback – returns at most 1 image URL */
+async function fetchViaOembed(postUrl: string): Promise<string[]> {
   try {
-    const oembed = await fetch(
+    const res = await fetch(
       `https://api.instagram.com/oembed/?url=${encodeURIComponent(postUrl)}&maxwidth=1080`,
       { headers: { "User-Agent": MOBILE_UA } }
     );
-    if (!oembed.ok) return [];
-    const data = await oembed.json();
-    if (data.thumbnail_url) return [data.thumbnail_url];
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (data.thumbnail_url) return [data.thumbnail_url as string];
   } catch { /* fall through */ }
   return [];
 }
 
-/** Strategy 2: Parse page HTML for og:image tags and CDN URLs */
+/**
+ * Parse page HTML and extract unique image URLs.
+ * Uses three strategies in priority order; deduplicates by CDN filename.
+ */
 function extractFromHtml(html: string): string[] {
-  const urls = new Set<string>();
+  // Map: CDN filename → best URL
+  const byFilename = new Map<string, string>();
 
-  // og:image meta tags (Instagram typically provides the main image here)
-  const ogMatches = [
-    ...html.matchAll(/content="(https:\/\/[^"]+(?:cdninstagram|fbcdn)[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/gi),
-  ];
-  for (const m of ogMatches) {
-    const u = m[1].replace(/&amp;/g, "&");
-    // Skip thumbnails and profile pictures
-    if (!u.includes("s150x150") && !u.includes("_p150x150") && !u.includes("profile")) {
-      urls.add(u);
-    }
-  }
-
-  // Strategy 3: window._sharedData JSON (older Instagram pages still have this)
+  // ── Strategy A: window._sharedData JSON (best: gives exact carousel structure) ──
   const sharedMatch = html.match(/window\._sharedData\s*=\s*(\{[\s\S]+?\});\s*<\/script>/);
   if (sharedMatch) {
     try {
       const data = JSON.parse(sharedMatch[1]);
-      const media =
-        data?.entry_data?.PostPage?.[0]?.graphql?.shortcode_media;
+      const media = data?.entry_data?.PostPage?.[0]?.graphql?.shortcode_media;
       if (media) {
-        if (media.display_url) urls.add(media.display_url);
-        // Carousel: edge_sidecar_to_children
-        const edges: Array<{ node: { display_url?: string } }> =
+        // Single image
+        if (media.display_url) mergeUrl(byFilename, media.display_url as string);
+        // Carousel slides
+        const edges: Array<{ node: { display_url?: string; display_resources?: Array<{ src: string }> } }> =
           media?.edge_sidecar_to_children?.edges ?? [];
         for (const edge of edges) {
-          if (edge?.node?.display_url) urls.add(edge.node.display_url);
+          // Prefer display_url (full res) over display_resources
+          if (edge?.node?.display_url) {
+            mergeUrl(byFilename, edge.node.display_url);
+          }
         }
       }
-    } catch { /* ignore JSON parse errors */ }
+    } catch { /* ignore */ }
   }
 
-  // Strategy 4: Look for display_url patterns in any embedded JSON
-  const displayUrls = [
-    ...html.matchAll(/"display_url"\s*:\s*"(https?:\\?\/\\?\/[^"]+)"/g),
+  // ── Strategy B: display_url keys in any JSON blob ──────────────────────────────
+  // Only match "display_url":"<url>" — not display_resources (those are low-res thumbnails)
+  const displayUrlMatches = [
+    ...html.matchAll(/"display_url"\s*:\s*"(https?:[^"]{10,})"/g),
   ];
-  for (const m of displayUrls) {
-    const u = m[1]
-      .replace(/\\u0026/g, "&")
-      .replace(/\\\//g, "/")
-      .replace(/\\n/g, "");
-    if (u.startsWith("https://") && (u.includes("cdninstagram") || u.includes("fbcdn"))) {
-      urls.add(u);
-    }
-  }
-
-  // Strategy 5: Look for "scontent" CDN image URLs in JSON structures
-  const scontentMatches = [
-    ...html.matchAll(/"(https:\\\/\\\/scontent[^"]{10,}\.(?:jpg|jpeg|png|webp)[^"]*)"/g),
-  ];
-  for (const m of scontentMatches) {
+  for (const m of displayUrlMatches) {
     const u = m[1]
       .replace(/\\u0026/g, "&")
       .replace(/\\\//g, "/");
-    if (
-      !u.includes("s150x150") &&
-      !u.includes("_p150x150") &&
-      !u.includes("profile")
-    ) {
-      urls.add(u);
+    if (u.includes("cdninstagram") || u.includes("fbcdn")) {
+      mergeUrl(byFilename, u);
     }
   }
 
-  return [...urls];
+  // ── Strategy C: og:image meta tag ─────────────────────────────────────────────
+  // Instagram puts the first/main image here (or the selected carousel item)
+  const ogMatches = [
+    ...html.matchAll(/property="og:image"\s+content="([^"]+)"/gi),
+    ...html.matchAll(/content="([^"]+)"\s+property="og:image"/gi),
+  ];
+  for (const m of ogMatches) {
+    const u = m[1].replace(/&amp;/g, "&");
+    if (u.includes("cdninstagram") || u.includes("fbcdn")) {
+      mergeUrl(byFilename, u);
+    }
+  }
+
+  return [...byFilename.values()];
 }
 
 export async function POST(req: NextRequest) {
@@ -152,16 +177,15 @@ export async function POST(req: NextRequest) {
     }
 
     const postUrl = `https://www.instagram.com/p/${shortcode}/`;
-    const imageUrls: string[] = [];
+    let rawUrls: string[] = [];
 
-    // ── Attempt 1: Fetch Instagram page HTML ──────────────────────────────────
+    // ── Primary: fetch page HTML ──────────────────────────────────────────────
     let htmlFetchError = "";
     try {
       const pageRes = await fetch(postUrl, {
         headers: {
           "User-Agent": MOBILE_UA,
-          Accept:
-            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
           "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8",
           "Cache-Control": "no-cache",
         },
@@ -170,40 +194,34 @@ export async function POST(req: NextRequest) {
 
       if (pageRes.ok) {
         const html = await pageRes.text();
-        const found = extractFromHtml(html);
-        imageUrls.push(...found);
+        rawUrls = extractFromHtml(html);
       }
     } catch (e) {
       htmlFetchError = e instanceof Error ? e.message : "Fetch failed";
     }
 
-    // ── Attempt 2: oEmbed API as fallback / supplement ────────────────────────
-    if (imageUrls.length === 0) {
-      const oembedUrls = await fetchViaOembed(postUrl);
-      imageUrls.push(...oembedUrls);
+    // ── Fallback: oEmbed ──────────────────────────────────────────────────────
+    if (rawUrls.length === 0) {
+      rawUrls = await fetchViaOembed(postUrl);
     }
 
-    if (imageUrls.length === 0) {
+    if (rawUrls.length === 0) {
       return NextResponse.json(
         {
           error:
-            "Keine Bilder gefunden. Mögliche Ursachen: privater Account, Instagram blockiert Server-Anfragen momentan, oder der Post existiert nicht. " +
-            (htmlFetchError ? `Technisch: ${htmlFetchError}` : ""),
+            "Keine Bilder gefunden. Mögliche Ursachen: privater Account, Instagram blockiert Server-Anfragen, oder Post existiert nicht." +
+            (htmlFetchError ? ` (${htmlFetchError})` : ""),
         },
         { status: 422 }
       );
     }
 
-    // Deduplicate by URL
-    const uniqueUrls = [...new Set(imageUrls)].slice(0, 20);
-
-    // Download all found images in parallel
-    const downloaded = await Promise.all(
-      uniqueUrls.map((u) => downloadImage(u))
-    );
+    // Cap at 20 and download in parallel
+    const urlsToFetch = rawUrls.slice(0, 20);
+    const downloaded = await Promise.all(urlsToFetch.map((u) => downloadImage(u)));
 
     const images = downloaded
-      .map((d, i) => (d ? { ...d, index: i, sourceUrl: uniqueUrls[i] } : null))
+      .map((d, i) => (d ? { ...d, index: i, sourceUrl: urlsToFetch[i] } : null))
       .filter(Boolean) as Array<{
         base64: string;
         mimeType: string;
@@ -213,7 +231,7 @@ export async function POST(req: NextRequest) {
 
     if (images.length === 0) {
       return NextResponse.json(
-        { error: "Bilder gefunden aber konnten nicht heruntergeladen werden. CDN blockiert möglicherweise Server-Anfragen." },
+        { error: "Bilder gefunden aber CDN blockiert Download. Bitte nochmal versuchen." },
         { status: 422 }
       );
     }
