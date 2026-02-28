@@ -133,7 +133,8 @@ export default function ApiDocsPage() {
           <EndpointRow method="GET"  path="/api/openclaw/templates/:id"                   desc="Genaue Struktur eines Templates (Slides, Elemente, Positionen)" />
           <EndpointRow method="GET"  path="/api/openclaw/carousels"                       desc="Alle erstellten Karussells mit Download-URLs auflisten" />
           <EndpointRow method="POST" path="/api/openclaw/carousels"                       desc="Neues Karussell aus Template erstellen + Texte befüllen" />
-          <EndpointRow method="GET"  path="/api/openclaw/carousels/:id/slides/:i/image.png" desc="Slide als PNG-Datei herunterladen (direkt, kein Browser)" />
+          <EndpointRow method="GET"  path="/api/openclaw/carousels/:id/slides/:i/image.png" desc="Einzelnen Slide als PNG herunterladen" />
+          <EndpointRow method="GET"  path="/api/openclaw/carousels/:id/slides/zip" desc="Alle Slides als ZIP-Archiv herunterladen (empfohlen)" />
         </div>
 
         {/* Auth */}

@@ -2,7 +2,6 @@
 
 import { useRef, useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { toPng } from "html-to-image";
 import { DownloadIcon, SaveIcon, LoaderIcon, CheckIcon, BookmarkIcon, LayoutTemplateIcon } from "lucide-react";
 import { useCanvasStore } from "@/store/canvasStore";
 import { SlideList } from "@/components/canvas/SlideList";
@@ -189,23 +188,30 @@ function CanvasInner() {
   }, [newCarousel]);
 
   const handleExport = async () => {
-    if (!slideRef.current) return;
     setExporting(true);
-    const originalSlideId = selectedSlideId;
     try {
-      for (let i = 0; i < slides.length; i++) {
-        useCanvasStore.getState().selectSlide(slides[i].id);
-        await new Promise((r) => setTimeout(r, 120));
-        if (!slideRef.current) break;
-        const dataUrl = await toPng(slideRef.current, { pixelRatio: 2 });
-        const a = document.createElement("a");
-        a.href = dataUrl;
-        a.download = `${carouselTitle.replace(/\s+/g, "-")}-slide-${i + 1}.png`;
-        a.click();
-        await new Promise((r) => setTimeout(r, 200));
+      const res = await fetch("/api/canvas/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slides, title: carouselTitle }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Unbekannter Fehler" }));
+        throw new Error(err.error ?? `Export fehlgeschlagen (${res.status})`);
       }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${carouselTitle.replace(/[^a-z0-9_\-]/gi, "-").toLowerCase()}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export error:", err);
+      alert(err instanceof Error ? err.message : "Export fehlgeschlagen");
     } finally {
-      if (originalSlideId) useCanvasStore.getState().selectSlide(originalSlideId);
       setExporting(false);
     }
   };

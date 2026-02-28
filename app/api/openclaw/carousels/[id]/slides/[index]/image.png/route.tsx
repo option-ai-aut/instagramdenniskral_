@@ -1,49 +1,18 @@
 /**
  * GET /api/openclaw/carousels/:id/slides/:index/image.png
- *
- * Renders a single carousel slide as a PNG image using Satori (next/og).
- * No auth required – URLs are non-guessable carousel IDs.
- * Rate: Returns 1080×1350 px PNG (4:5 ratio) or matches the slide's aspectRatio.
+ * Renders a single carousel slide as PNG (Satori / next/og).
  */
-import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 import { getDb } from "@/lib/db";
 import { SYSTEM_USER_ID } from "@/lib/auth";
-import { collectSatoriFonts } from "@/lib/satori-fonts";
-import type { Slide, TextElement } from "@/store/canvasStore";
+import { renderSlideToPng } from "@/lib/render-slide";
+import type { Slide } from "@/store/canvasStore";
 
-export const runtime = "edge";
-
-const W = 1080;
-
-function getHeight(aspectRatio: string): number {
-  if (aspectRatio === "1:1") return W;
-  if (aspectRatio === "9:16") return Math.round(W * (16 / 9));
-  return Math.round(W * (5 / 4)); // default 4:5
-}
-
-function fontWeightNum(fw: string): number {
-  const map: Record<string, number> = {
-    normal: 400, medium: 500, semibold: 600, bold: 700, extrabold: 800,
-  };
-  return map[fw] ?? 400;
-}
-
-function buildBackground(slide: Slide): React.CSSProperties {
-  const bg = slide.background;
-  if (bg.type === "solid" && bg.color) return { backgroundColor: bg.color };
-  if (bg.type === "gradient" && bg.gradient) {
-    // Satori supports linear-gradient in backgroundImage
-    return { backgroundImage: bg.gradient };
-  }
-  if (bg.type === "image" && bg.imageUrl) {
-    return { backgroundImage: `url(${bg.imageUrl})`, backgroundSize: "cover" };
-  }
-  return { backgroundColor: "#0a0a0f" };
-}
+export const runtime = "nodejs";
+export const maxDuration = 30;
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string; index: string }> }
 ) {
   const { id, index } = await params;
@@ -61,7 +30,6 @@ export async function GET(
       .eq("id", id)
       .single();
 
-    // Allow access if it belongs to the system user (or public carousels)
     if (!carousel || carousel.userId !== SYSTEM_USER_ID) {
       return new Response("Not found", { status: 404 });
     }
@@ -70,97 +38,22 @@ export async function GET(
     const slide = slides[slideIndex];
 
     if (!slide) {
-      return new Response(`Slide ${slideIndex} not found. Carousel has ${slides.length} slides.`, { status: 404 });
+      return new Response(
+        `Slide ${slideIndex} not found. Carousel has ${slides.length} slides.`,
+        { status: 404 }
+      );
     }
 
-    const height = getHeight(slide.aspectRatio ?? "4:5");
-    const bgStyle = buildBackground(slide);
+    const buffer = await renderSlideToPng(slide);
 
-    const elements = (slide.elements ?? []) as TextElement[];
-
-    // Load all required fonts for this slide
-    const fonts = await collectSatoriFonts(elements);
-
-    const imageResponse = new ImageResponse(
-      (
-        <div
-          style={{
-            width: W,
-            height,
-            display: "flex",
-            flexDirection: "column",
-            position: "relative",
-            overflow: "hidden",
-            ...bgStyle,
-          }}
-        >
-          {elements.map((el) => {
-            const topPct = el.y ?? 50;
-            const alignMap: Record<string, "center" | "flex-start" | "flex-end"> = {
-              center: "center",
-              left: "flex-start",
-              right: "flex-end",
-            };
-            const textAlign = (el.align ?? "center") as "center" | "left" | "right";
-
-            const anchorTransform: Record<string, string> = {
-              top:    "translateY(0%)",
-              center: "translateY(-50%)",
-              bottom: "translateY(-100%)",
-            };
-            const transform = anchorTransform[(el as TextElement & { verticalAnchor?: string }).verticalAnchor ?? "center"];
-
-            return (
-              <div
-                key={el.id}
-                style={{
-                  position: "absolute",
-                  top: `${topPct}%`,
-                  left: 0,
-                  right: 0,
-                  transform,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: alignMap[textAlign] ?? "center",
-                  padding: "0 64px",
-                }}
-              >
-                {el.text.split("\n").map((line: string, li: number) => (
-                  <span
-                    key={li}
-                    style={{
-                      fontSize: el.fontSize ?? 16,
-                      fontWeight: fontWeightNum(el.fontWeight ?? "normal"),
-                      fontFamily: el.fontFamily ?? "Inter",
-                      color: el.color ?? "#ffffff",
-                      textAlign,
-                      lineHeight: 1.3,
-                      wordBreak: "break-word",
-                      maxWidth: "100%",
-                      display: "block",
-                    }}
-                  >
-                    {line || " "}
-                  </span>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-      ),
-      {
-        width: W,
-        height,
-        fonts,
-      }
-    );
-
-    // Add filename header
-    const headers = new Headers(imageResponse.headers);
-    headers.set("Content-Disposition", `attachment; filename="slide-${slideIndex + 1}.png"`);
-    headers.set("Cache-Control", "public, max-age=3600");
-
-    return new Response(imageResponse.body, { status: 200, headers });
+    return new Response(buffer, {
+      status: 200,
+      headers: {
+        "Content-Type": "image/png",
+        "Content-Disposition": `attachment; filename="slide-${slideIndex + 1}.png"`,
+        "Cache-Control": "public, max-age=3600",
+      },
+    });
   } catch (err) {
     console.error("Slide PNG error:", err);
     return new Response("Render error", { status: 500 });
