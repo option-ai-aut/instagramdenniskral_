@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { InstagramIcon, LoaderIcon, XIcon, CheckIcon, DownloadCloudIcon, AlertCircleIcon, ChevronRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,7 +26,10 @@ export function InstagramImport({ onImport, disabled }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [fetched, setFetched] = useState<ImportedImage[] | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [mounted, setMounted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const handleOpen = () => {
     setOpen(true);
@@ -33,16 +37,16 @@ export function InstagramImport({ onImport, disabled }: Props) {
     setError(null);
     setFetched(null);
     setSelected(new Set());
-    setTimeout(() => inputRef.current?.focus(), 50);
+    setTimeout(() => inputRef.current?.focus(), 80);
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setOpen(false);
     setUrl("");
     setError(null);
     setFetched(null);
     setSelected(new Set());
-  };
+  }, []);
 
   const handleFetch = async () => {
     if (!url.trim()) return;
@@ -99,33 +103,22 @@ export function InstagramImport({ onImport, disabled }: Props) {
 
   const isCarousel = fetched && fetched.length > 1;
 
-  return (
-    <>
-      {/* Trigger Button */}
-      <button
-        onClick={handleOpen}
-        disabled={disabled}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/[0.07] text-[11px] text-white/40 hover:text-white/70 hover:border-white/15 transition-all disabled:opacity-30"
+  const modal = open ? (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}
+      onClick={(e) => e.target === e.currentTarget && handleClose()}
+    >
+      <div
+        className="w-full max-w-lg rounded-2xl border overflow-hidden"
+        style={{
+          background: "rgba(17,17,24,0.98)",
+          borderColor: "rgba(255,255,255,0.09)",
+          boxShadow: "0 0 100px rgba(124,106,247,0.2), 0 0 0 1px rgba(255,255,255,0.05)",
+          maxHeight: "90vh",
+          overflowY: "auto",
+        }}
       >
-        <InstagramIcon size={11} />
-        Von Instagram importieren
-      </button>
-
-      {/* Modal */}
-      {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}
-          onClick={(e) => e.target === e.currentTarget && handleClose()}
-        >
-          <div
-            className="w-full max-w-lg rounded-2xl border overflow-hidden"
-            style={{
-              background: "rgba(17,17,24,0.97)",
-              borderColor: "rgba(255,255,255,0.08)",
-              boxShadow: "0 0 80px rgba(124,106,247,0.15), 0 0 0 1px rgba(255,255,255,0.04)",
-            }}
-          >
             {/* Header */}
             <div
               className="px-5 py-4 border-b flex items-center gap-3"
@@ -294,9 +287,25 @@ export function InstagramImport({ onImport, disabled }: Props) {
                 </div>
               )}
             </div>
-          </div>
         </div>
-      )}
+      </div>
+    </div>
+  ) : null;
+
+  return (
+    <>
+      {/* Trigger Button */}
+      <button
+        onClick={handleOpen}
+        disabled={disabled}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-white/[0.07] text-[11px] text-white/40 hover:text-white/70 hover:border-white/15 transition-all disabled:opacity-30"
+      >
+        <InstagramIcon size={11} />
+        Von Instagram importieren
+      </button>
+
+      {/* Portal: render modal directly on document.body to escape sidebar overflow clipping */}
+      {mounted && modal ? createPortal(modal, document.body) : null}
     </>
   );
 }
