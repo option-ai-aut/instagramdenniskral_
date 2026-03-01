@@ -74,7 +74,12 @@ export function InstagramImport({ onImport, disabled }: Props) {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error ?? "Fehler beim Importieren");
+        // Show setup instructions if session not configured
+        if (data.setupRequired && Array.isArray(data.instructions)) {
+          setError("⚙️ Einrichtung nötig:\n" + data.instructions.join("\n"));
+        } else {
+          setError(data.error ?? "Fehler beim Importieren");
+        }
         return;
       }
 
@@ -203,7 +208,7 @@ export function InstagramImport({ onImport, disabled }: Props) {
           {error && (
             <div className="flex items-start gap-2.5 px-3 py-3 rounded-xl border border-[#f87171]/20 bg-[#f87171]/5">
               <AlertCircleIcon size={13} className="text-[#f87171] flex-shrink-0 mt-0.5" />
-              <p className="text-[11px] text-[#f87171]/80 leading-relaxed">{error}</p>
+              <p className="text-[11px] text-[#f87171]/80 leading-relaxed whitespace-pre-line">{error}</p>
             </div>
           )}
 

@@ -4,8 +4,16 @@
  * Fetches images from a public Instagram post URL.
  * Supports single posts and carousels.
  *
- * Key fix: deduplicates by CDN filename (not URL) to avoid the same image
- * appearing multiple times in different resolutions (s640x640, s1080x1080, etc.)
+ * Requires INSTAGRAM_SESSION_ID environment variable (sessionid cookie from your
+ * logged-in Instagram browser session). Without it, Instagram blocks all server requests.
+ *
+ * How to get your session ID:
+ *   1. Open Instagram in Chrome, log in as @denniskral_
+ *   2. Open DevTools → Application → Cookies → https://www.instagram.com
+ *   3. Copy the value of the "sessionid" cookie
+ *   4. Add to .env.local: INSTAGRAM_SESSION_ID=your_value_here
+ *   5. Also copy "X-IG-App-ID" from any Instagram network request and add:
+ *      INSTAGRAM_APP_ID=your_value_here  (default: 936619743392459)
  *
  * Body: { url: string }
  * Response: { images: [{ base64, mimeType, index }], isCarousel: boolean, postUrl: string }
@@ -13,46 +21,156 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 
-const MOBILE_UA =
-  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+const DEFAULT_APP_ID = "936619743392459";
+
+function getInstagramHeaders(): HeadersInit {
+  const sessionId = process.env.INSTAGRAM_SESSION_ID;
+  const appId = process.env.INSTAGRAM_APP_ID ?? DEFAULT_APP_ID;
+  const ua =
+    process.env.INSTAGRAM_USER_AGENT ??
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+  const headers: Record<string, string> = {
+    "User-Agent": ua,
+    "X-IG-App-ID": appId,
+    "X-FB-LSD": "AVqbxe3J_YA",
+    "X-ASBD-ID": "129477",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8",
+    "Referer": "https://www.instagram.com/",
+    "Origin": "https://www.instagram.com",
+    "Sec-Fetch-Site": "same-origin",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Dest": "empty",
+  };
+
+  if (sessionId) {
+    headers["Cookie"] = `sessionid=${sessionId}; ig_did=1; csrftoken=1; ds_user_id=1`;
+  }
+
+  return headers;
+}
 
 function extractShortcode(url: string): string | null {
-  const m = url.match(/instagram\.com\/(?:p|reel|tv|reels)\/([A-Za-z0-9_-]+)/);
+  const m = url.match(/instagram\.com\/(?:[A-Za-z0-9_.]+\/)?(?:p|reel|reels|tv)\/([A-Za-z0-9_-]+)/);
   return m?.[1] ?? null;
 }
 
-/** Extract the CDN filename (without query params) as a stable identity key. */
-function cdnKey(url: string): string {
+/** Pick highest-resolution candidate from image_versions2 */
+function bestImageUrl(
+  candidates: Array<{ url: string; width: number; height: number }>
+): string | null {
+  if (!Array.isArray(candidates) || candidates.length === 0) return null;
+  return candidates.reduce((best, c) =>
+    (c.width ?? 0) > (best.width ?? 0) ? c : best
+  ).url;
+}
+
+/** Fetch via Instagram's private JSON endpoint (?__a=1&__d=dis) */
+async function fetchViaPrivateApi(shortcode: string): Promise<string[] | null> {
+  const sessionId = process.env.INSTAGRAM_SESSION_ID;
+  if (!sessionId) return null; // won't work without a session
+
+  const url = `https://www.instagram.com/p/${shortcode}/?__a=1&__d=dis`;
   try {
-    return new URL(url).pathname.split("/").pop() ?? url;
+    const res = await fetch(url, {
+      headers: getInstagramHeaders(),
+      redirect: "follow",
+    });
+
+    if (!res.ok) {
+      console.warn(`Instagram private API: HTTP ${res.status}`);
+      return null;
+    }
+
+    const json = await res.json();
+    const item = json?.items?.[0];
+    if (!item) return null;
+
+    const imageUrls: string[] = [];
+
+    if (item.product_type === "carousel_container" && Array.isArray(item.carousel_media)) {
+      // Carousel post
+      for (const media of item.carousel_media) {
+        const candidates = media?.image_versions2?.candidates ?? [];
+        const url = bestImageUrl(candidates);
+        if (url) imageUrls.push(url);
+      }
+    } else {
+      // Single image post
+      const candidates = item?.image_versions2?.candidates ?? [];
+      const url = bestImageUrl(candidates);
+      if (url) imageUrls.push(url);
+      // Fallback for video posts (use thumbnail)
+      if (imageUrls.length === 0 && item?.thumbnail_url) {
+        imageUrls.push(item.thumbnail_url as string);
+      }
+    }
+
+    return imageUrls.length > 0 ? imageUrls : null;
+  } catch (err) {
+    console.error("Instagram private API error:", err);
+    return null;
+  }
+}
+
+/** Fetch via Instagram GraphQL API (no cookie needed, but often returns null for non-logged-in) */
+async function fetchViaGraphQL(shortcode: string): Promise<string[] | null> {
+  try {
+    const graphql = new URL("https://www.instagram.com/api/graphql");
+    graphql.searchParams.set("variables", JSON.stringify({ shortcode }));
+    graphql.searchParams.set("doc_id", "10015901848480474");
+    graphql.searchParams.set("lsd", "AVqbxe3J_YA");
+
+    const res = await fetch(graphql.toString(), {
+      method: "POST",
+      headers: {
+        ...getInstagramHeaders(),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      redirect: "follow",
+    });
+
+    if (!res.ok) return null;
+    const json = await res.json();
+    const media = json?.data?.xdt_shortcode_media;
+    if (!media) return null;
+
+    const urls: string[] = [];
+
+    // Carousel
+    const edges: Array<{ node?: { display_url?: string; display_resources?: Array<{ src: string; config_width: number }> } }> =
+      media?.edge_sidecar_to_children?.edges ?? [];
+    if (edges.length > 0) {
+      for (const edge of edges) {
+        // Prefer highest-res display_resource
+        const resources = edge?.node?.display_resources ?? [];
+        const best = resources.sort((a, b) => b.config_width - a.config_width)[0];
+        const url = best?.src ?? edge?.node?.display_url;
+        if (url) urls.push(url);
+      }
+    } else if (media.display_url) {
+      urls.push(media.display_url as string);
+    }
+
+    return urls.length > 0 ? urls : null;
   } catch {
-    return url;
+    return null;
   }
 }
 
-/** Prefer full-resolution URLs over thumbnails when deduplicating. */
-function qualityScore(url: string): number {
-  if (url.includes("s150x150") || url.includes("_p150x150")) return 0;
-  if (url.includes("s240x240") || url.includes("s320x320")) return 1;
-  if (url.includes("s480x480") || url.includes("s640x640")) return 2;
-  if (url.includes("s1080x1080")) return 3;
-  return 4; // no size constraint = best
-}
-
-/**
- * Merge a candidate URL into a map keyed by CDN filename.
- * Keeps the highest-quality variant per unique image.
- */
-function mergeUrl(map: Map<string, string>, url: string): void {
-  if (!url.startsWith("https://")) return;
-  // Skip profile pictures and obvious thumbnails
-  if (url.includes("profile") || url.includes("s150x150") || url.includes("_p150x150")) return;
-
-  const key = cdnKey(url);
-  const existing = map.get(key);
-  if (!existing || qualityScore(url) > qualityScore(existing)) {
-    map.set(key, url);
-  }
+/** oEmbed fallback – at most 1 image, low res */
+async function fetchViaOembed(postUrl: string): Promise<string[]> {
+  try {
+    const res = await fetch(
+      `https://api.instagram.com/oembed/?url=${encodeURIComponent(postUrl)}&maxwidth=1080`,
+      { headers: { "User-Agent": "Mozilla/5.0" } }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (data?.thumbnail_url) return [data.thumbnail_url as string];
+  } catch { /* fall through */ }
+  return [];
 }
 
 async function downloadImage(
@@ -61,9 +179,10 @@ async function downloadImage(
   try {
     const res = await fetch(url, {
       headers: {
-        "User-Agent": MOBILE_UA,
-        Referer: "https://www.instagram.com/",
-        Accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        "Referer": "https://www.instagram.com/",
+        "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8",
       },
     });
     if (!res.ok) return null;
@@ -71,6 +190,7 @@ async function downloadImage(
     const mimeType = contentType.split(";")[0].trim();
     if (!mimeType.startsWith("image/")) return null;
     const buf = await res.arrayBuffer();
+    if (buf.byteLength < 1000) return null; // skip tiny/blank images
     const base64 = Buffer.from(buf).toString("base64");
     return { base64, mimeType };
   } catch {
@@ -78,85 +198,30 @@ async function downloadImage(
   }
 }
 
-/** oEmbed fallback – returns at most 1 image URL */
-async function fetchViaOembed(postUrl: string): Promise<string[]> {
-  try {
-    const res = await fetch(
-      `https://api.instagram.com/oembed/?url=${encodeURIComponent(postUrl)}&maxwidth=1080`,
-      { headers: { "User-Agent": MOBILE_UA } }
-    );
-    if (!res.ok) return [];
-    const data = await res.json();
-    if (data.thumbnail_url) return [data.thumbnail_url as string];
-  } catch { /* fall through */ }
-  return [];
-}
-
-/**
- * Parse page HTML and extract unique image URLs.
- * Uses three strategies in priority order; deduplicates by CDN filename.
- */
-function extractFromHtml(html: string): string[] {
-  // Map: CDN filename → best URL
-  const byFilename = new Map<string, string>();
-
-  // ── Strategy A: window._sharedData JSON (best: gives exact carousel structure) ──
-  const sharedMatch = html.match(/window\._sharedData\s*=\s*(\{[\s\S]+?\});\s*<\/script>/);
-  if (sharedMatch) {
-    try {
-      const data = JSON.parse(sharedMatch[1]);
-      const media = data?.entry_data?.PostPage?.[0]?.graphql?.shortcode_media;
-      if (media) {
-        // Single image
-        if (media.display_url) mergeUrl(byFilename, media.display_url as string);
-        // Carousel slides
-        const edges: Array<{ node: { display_url?: string; display_resources?: Array<{ src: string }> } }> =
-          media?.edge_sidecar_to_children?.edges ?? [];
-        for (const edge of edges) {
-          // Prefer display_url (full res) over display_resources
-          if (edge?.node?.display_url) {
-            mergeUrl(byFilename, edge.node.display_url);
-          }
-        }
-      }
-    } catch { /* ignore */ }
-  }
-
-  // ── Strategy B: display_url keys in any JSON blob ──────────────────────────────
-  // Only match "display_url":"<url>" — not display_resources (those are low-res thumbnails)
-  const displayUrlMatches = [
-    ...html.matchAll(/"display_url"\s*:\s*"(https?:[^"]{10,})"/g),
-  ];
-  for (const m of displayUrlMatches) {
-    const u = m[1]
-      .replace(/\\u0026/g, "&")
-      .replace(/\\\//g, "/");
-    if (u.includes("cdninstagram") || u.includes("fbcdn")) {
-      mergeUrl(byFilename, u);
-    }
-  }
-
-  // ── Strategy C: og:image meta tag ─────────────────────────────────────────────
-  // Instagram puts the first/main image here (or the selected carousel item)
-  const ogMatches = [
-    ...html.matchAll(/property="og:image"\s+content="([^"]+)"/gi),
-    ...html.matchAll(/content="([^"]+)"\s+property="og:image"/gi),
-  ];
-  for (const m of ogMatches) {
-    const u = m[1].replace(/&amp;/g, "&");
-    if (u.includes("cdninstagram") || u.includes("fbcdn")) {
-      mergeUrl(byFilename, u);
-    }
-  }
-
-  return [...byFilename.values()];
-}
-
 export async function POST(req: NextRequest) {
   try {
     await requireAuth();
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Inform client if no session is configured
+  if (!process.env.INSTAGRAM_SESSION_ID) {
+    return NextResponse.json(
+      {
+        error: "INSTAGRAM_SESSION_ID nicht konfiguriert",
+        setupRequired: true,
+        instructions: [
+          "1. Öffne Instagram.com in Chrome und logge dich als @denniskral_ ein",
+          "2. Öffne DevTools (F12) → Application → Cookies → https://www.instagram.com",
+          "3. Kopiere den Wert des 'sessionid' Cookies",
+          "4. Füge ihn in .env.local ein: INSTAGRAM_SESSION_ID=dein_wert",
+          "5. Füge ihn auch in Vercel → Settings → Environment Variables ein",
+          "6. Deploye neu",
+        ],
+      },
+      { status: 503 }
+    );
   }
 
   try {
@@ -171,46 +236,42 @@ export async function POST(req: NextRequest) {
 
     if (!shortcode) {
       return NextResponse.json(
-        { error: "Ungültige Instagram-URL. Erwartet: https://www.instagram.com/p/SHORTCODE/" },
+        {
+          error:
+            "Ungültige Instagram-URL. Unterstützte Formate:\n" +
+            "• https://www.instagram.com/p/SHORTCODE/\n" +
+            "• https://www.instagram.com/reel/SHORTCODE/",
+        },
         { status: 400 }
       );
     }
 
     const postUrl = `https://www.instagram.com/p/${shortcode}/`;
-    let rawUrls: string[] = [];
 
-    // ── Primary: fetch page HTML ──────────────────────────────────────────────
-    let htmlFetchError = "";
-    try {
-      const pageRes = await fetch(postUrl, {
-        headers: {
-          "User-Agent": MOBILE_UA,
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "de-DE,de;q=0.9,en-US;q=0.8",
-          "Cache-Control": "no-cache",
-        },
-        redirect: "follow",
-      });
+    // Strategy 1: Private API with session cookie (best – gives full carousel)
+    let rawUrls = await fetchViaPrivateApi(shortcode);
 
-      if (pageRes.ok) {
-        const html = await pageRes.text();
-        rawUrls = extractFromHtml(html);
-      }
-    } catch (e) {
-      htmlFetchError = e instanceof Error ? e.message : "Fetch failed";
+    // Strategy 2: GraphQL API (no cookie, often fails but worth trying)
+    if (!rawUrls || rawUrls.length === 0) {
+      console.log("Private API failed, trying GraphQL...");
+      rawUrls = await fetchViaGraphQL(shortcode);
     }
 
-    // ── Fallback: oEmbed ──────────────────────────────────────────────────────
-    if (rawUrls.length === 0) {
-      rawUrls = await fetchViaOembed(postUrl);
+    // Strategy 3: oEmbed (last resort, only 1 thumbnail)
+    if (!rawUrls || rawUrls.length === 0) {
+      console.log("GraphQL failed, trying oEmbed...");
+      const oembed = await fetchViaOembed(postUrl);
+      if (oembed.length > 0) rawUrls = oembed;
     }
 
-    if (rawUrls.length === 0) {
+    if (!rawUrls || rawUrls.length === 0) {
       return NextResponse.json(
         {
           error:
-            "Keine Bilder gefunden. Mögliche Ursachen: privater Account, Instagram blockiert Server-Anfragen, oder Post existiert nicht." +
-            (htmlFetchError ? ` (${htmlFetchError})` : ""),
+            "Keine Bilder gefunden. Mögliche Ursachen:\n" +
+            "• Privater Account oder Post existiert nicht\n" +
+            "• Instagram-Session abgelaufen → neuen sessionid-Cookie eintragen\n" +
+            "• Instagram hat die IP temporär blockiert → in 30 Minuten nochmal versuchen",
         },
         { status: 422 }
       );
@@ -231,7 +292,11 @@ export async function POST(req: NextRequest) {
 
     if (images.length === 0) {
       return NextResponse.json(
-        { error: "Bilder gefunden aber CDN blockiert Download. Bitte nochmal versuchen." },
+        {
+          error:
+            "Bild-URLs gefunden, aber Download vom Instagram CDN blockiert.\n" +
+            "Bitte nochmal versuchen – Instagram CDN-Links sind zeitlich begrenzt.",
+        },
         { status: 422 }
       );
     }
