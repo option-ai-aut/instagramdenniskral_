@@ -155,7 +155,7 @@ function ElementRenderer({
           fontFamily: element.fontFamily ?? "Inter, sans-serif",
         }}
       >
-        {element.text.replace(/\\n/g, "\n")}
+        {element.text.replace(/\\n/g, "\n").replace(/\/n/g, "\n")}
       </p>
 
       {/* Lock indicator – only visible in interactive (editor) mode */}

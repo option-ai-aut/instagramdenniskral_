@@ -33,6 +33,19 @@ import { nanoid } from "@/lib/nanoid";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+/**
+ * Normalise any newline variant Openclaw might send:
+ *   - literal \n  (backslash + n, JSON "\\n")
+ *   - literal /n  (forward-slash + n)
+ *   - \\n         (double-escaped, JSON "\\\\n")
+ * All become a real newline character (\u000A).
+ */
+function normalizeNewlines(text: string): string {
+  return text
+    .replace(/\\n/g, "\n")   // backslash-n  → newline
+    .replace(/\/n/g, "\n");  // forward-slash-n → newline
+}
+
 // Built-in template definitions (mirrors canvasStore.ts – fonts are fixed per template)
 function getBuiltinTemplate(id: string): Slide[] | null {
   const templates: Record<string, Slide[]> = {
@@ -175,7 +188,7 @@ export async function POST(req: NextRequest) {
           elements: (slide.elements as TextElement[]).map((el) => {
             const override = slideOverrides.find((o) => o.elementType === el.type);
             return (override && !el.locked)
-              ? { ...el, text: override.text.replace(/\\n/g, "\n").slice(0, 500) }
+              ? { ...el, text: normalizeNewlines(override.text).slice(0, 500) }
               : el;
           }),
         };
