@@ -150,31 +150,42 @@ export async function POST(req: NextRequest) {
   const authError = validateOpenclaw(req);
   if (authError) return authError;
 
-  try {
-    const body = await req.json().catch(() => ({}));
-    const {
-      templateId,
-      title,
-      grainIntensity = 0,
-      // ── new simplified format ──────────────────────────────────────────────
-      tag,                        // global tag text for ALL slides
-      body: bodyText,             // global body text for ALL slides
-      slides: slideOverrides,     // per-slide { header?, subtitle? }
-      // ── legacy format (kept for backward compat) ─────────────────────────
-      textOverrides = [],
-    } = body as {
-      templateId: string;
-      title?: string;
-      grainIntensity?: number;
-      tag?: string;
-      body?: string;
-      slides?: Array<{ header?: string; subtitle?: string }>;
-      textOverrides?: Array<{ slideIndex: number; elementType: string; text: string }>;
-    };
+  // ?dry=1  → return JSON showing applied overrides without rendering PNGs (debug)
+  const dryRun = req.nextUrl.searchParams.get("dry") === "1";
 
-    if (!templateId) {
+  try {
+    // Rename outer var to avoid confusion with the 'body' JSON field
+    let requestBody: Record<string, unknown> = {};
+    try {
+      requestBody = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const templateId    = requestBody.templateId    as string | undefined;
+    const title         = requestBody.title         as string | undefined;
+    const grainIntensity = typeof requestBody.grainIntensity === "number" ? requestBody.grainIntensity : 0;
+    // ── new simplified format ────────────────────────────────────────────────
+    const tag          = typeof requestBody.tag  === "string" ? requestBody.tag  : undefined;
+    const bodyText     = typeof requestBody.body === "string" ? requestBody.body : undefined;
+    const slideOverrides = Array.isArray(requestBody.slides)
+      ? (requestBody.slides as Array<{ header?: string; subtitle?: string }>)
+      : undefined;
+    // ── legacy format (kept for backward compat) ────────────────────────────
+    const textOverrides = Array.isArray(requestBody.textOverrides)
+      ? (requestBody.textOverrides as Array<{ slideIndex: number; elementType: string; text: string }>)
+      : [];
+
+    console.log("[openclaw/POST] received:", JSON.stringify({
+      templateId, title, grainIntensity,
+      tag, bodyText,
+      slideOverridesCount: slideOverrides?.length ?? 0,
+      textOverridesCount: textOverrides.length,
+    }));
+
+    if (!templateId || typeof templateId !== "string") {
       return NextResponse.json(
-        { error: "templateId is required. Call GET /api/openclaw/templates to see available templates." },
+        { error: "templateId is required. Call GET /api/openclaw/templates to see available templates.", received: requestBody },
         { status: 400 }
       );
     }
@@ -260,6 +271,27 @@ export async function POST(req: NextRequest) {
       };
     });
 
+    console.log("[openclaw/POST] slides after overrides:", JSON.stringify(
+      slides.map((sl, i) => ({
+        slideIndex: i,
+        elements: (sl.elements as TextElement[]).map((el) => ({ type: el.type, text: el.text, locked: el.locked })),
+      }))
+    ));
+
+    // ?dry=1: return JSON showing applied text without rendering (useful for debugging)
+    if (dryRun) {
+      return NextResponse.json({
+        debug: true,
+        templateId,
+        slideCount: slides.length,
+        receivedParams: { tag, bodyText, slideOverridesCount: slideOverrides?.length ?? 0, textOverridesCount: textOverrides.length },
+        slides: slides.map((sl, i) => ({
+          slideIndex: i,
+          elements: (sl.elements as TextElement[]).map((el) => ({ type: el.type, text: el.text, locked: !!el.locked })),
+        })),
+      });
+    }
+
     // Assign fresh IDs so the template objects are not mutated
     const finalSlides: Slide[] = slides.map((sl) => ({
       ...sl,
@@ -288,7 +320,16 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/zip",
         "Content-Disposition": `attachment; filename="${safeTitle}.zip"`,
         "X-Slide-Count": String(finalSlides.length),
-        "Cache-Control": "no-store",
+        "X-Template-Id": templateId,
+        "X-Overrides-Applied": JSON.stringify({
+          tag: tag ?? null,
+          body: bodyText ?? null,
+          slidesCount: slideOverrides?.length ?? 0,
+          legacyCount: textOverrides.length,
+        }),
+        "Cache-Control": "no-cache, no-store, must-revalidate, private",
+        "Pragma": "no-cache",
+        "Expires": "0",
       },
     });
   } catch (err) {
