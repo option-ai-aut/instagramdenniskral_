@@ -121,9 +121,215 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
 
   return (
     <>
-      <div className="flex flex-col h-full">
+      {/* ── Desktop: image left | controls right ── */}
+      <div className="hidden md:flex h-full">
+
+        {/* Image column – fills available height, always shows full image */}
+        <div className="flex-1 flex flex-col min-w-0 p-4">
+          <div
+            className={cn(
+              "flex-1 min-h-0 relative rounded-2xl overflow-hidden border cursor-zoom-in",
+              hasResult ? "border-[#1d4ed8]/30" : "border-white/[0.06]"
+            )}
+            onClick={() => hasResult && setLightbox(true)}
+          >
+            <Image
+              src={previewSrc}
+              alt={hasResult ? "KI Ergebnis" : "Original"}
+              fill
+              className="object-contain"
+              sizes="(max-width: 1280px) 60vw, 800px"
+              unoptimized
+            />
+
+            {isProcessing && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/65 backdrop-blur-sm">
+                <LoaderIcon size={26} className="text-[#60a5fa] animate-spin" />
+                <div className="text-center space-y-1">
+                  <p className="text-xs font-medium text-white/80">Gemini arbeitet…</p>
+                  <p className="text-[10px] text-white/40">Stil analysieren → Bild bearbeiten</p>
+                </div>
+              </div>
+            )}
+
+            {hasResult && !isProcessing && (
+              <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-[#1d4ed8]/80 backdrop-blur-sm text-white border border-[#60a5fa]/30">
+                <CheckCircleIcon size={10} />
+                KI Ergebnis
+              </div>
+            )}
+
+            {hasResult && !isProcessing && (
+              <div className="absolute top-3 right-3">
+                <div className="w-7 h-7 rounded-lg bg-black/60 border border-white/10 flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity">
+                  <MaximizeIcon size={12} className="text-white" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Action buttons below image */}
+          {hasResult && !isProcessing && (
+            <div className="mt-3 flex gap-2 flex-shrink-0">
+              <button
+                onClick={() => useResultAsBase(selected.id)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-medium border border-[#1d4ed8]/25 text-[#60a5fa] hover:bg-[#1d4ed8]/10 transition-all"
+              >
+                <RefreshCwIcon size={11} />
+                Als Original
+              </button>
+              <button
+                onClick={handleDownload}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-medium border border-white/10 text-white/60 hover:text-white hover:border-white/20 transition-all"
+              >
+                <DownloadIcon size={11} />
+                Download
+              </button>
+              <button
+                onClick={() => setLightbox(true)}
+                className="w-9 flex items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white hover:border-white/20 transition-all"
+              >
+                <MaximizeIcon size={13} />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Controls column – fixed width, scrollable */}
         <div
-          className="px-5 py-3 border-b flex-shrink-0 flex items-center justify-between"
+          className="w-[320px] flex-shrink-0 flex flex-col border-l"
+          style={{ borderColor: "var(--glass-border)" }}
+        >
+          {/* Header */}
+          <div
+            className="px-4 py-3 border-b flex-shrink-0 flex items-center justify-between"
+            style={{ borderColor: "var(--glass-border)" }}
+          >
+            <p className="text-xs font-medium text-white/60">Prompt & Generierung</p>
+            {images.length > 1 && (
+              <button
+                onClick={onGenerateAll}
+                disabled={isGeneratingAll}
+                className="flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg font-medium transition-all border border-[#1d4ed8]/30 text-[#60a5fa] hover:bg-[#1d4ed8]/10 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {isGeneratingAll ? <LoaderIcon size={11} className="animate-spin" /> : <SparklesIcon size={11} />}
+                Alle ({images.filter(i => i.prompt && i.status !== "done" && i.status !== "processing").length}/{images.length})
+              </button>
+            )}
+          </div>
+
+          {/* Scrollable controls */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+            {/* Prompt input */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <label className="text-[11px] text-white/40">Dein Prompt</label>
+                {selected.aiDerivedPrompt && (
+                  <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-[#1d4ed8]/15 text-[#60a5fa]/80 border border-[#1d4ed8]/20">
+                    <BrainCircuitIcon size={9} />
+                    KI analysiert
+                  </span>
+                )}
+              </div>
+              <textarea
+                value={selected.prompt}
+                onChange={(e) => {
+                  setPrompt(selected.id, e.target.value);
+                  if (selected.aiDerivedPrompt) updateImage(selected.id, { aiDerivedPrompt: false });
+                }}
+                placeholder="Beschreibe wie das Bild bearbeitet werden soll..."
+                rows={4}
+                maxLength={2000}
+                className="w-full rounded-xl border text-sm text-white/80 placeholder-white/20 p-3 resize-none focus:outline-none focus:ring-1 focus:ring-[#1d4ed8]/50 transition-colors"
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  borderColor: "rgba(255,255,255,0.08)",
+                }}
+              />
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-[10px] text-white/20">{selected.prompt.length}/2000</span>
+                <button
+                  onClick={handleSavePrompt}
+                  disabled={saving || !selected.prompt.trim() || isAlreadySaved}
+                  className={cn(
+                    "flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-lg font-medium transition-all border",
+                    saveSuccess
+                      ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                      : isAlreadySaved
+                      ? "border-white/10 text-white/25 cursor-default"
+                      : "border-[#1d4ed8]/30 text-[#60a5fa] hover:bg-[#1d4ed8]/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                  )}
+                >
+                  {saving ? <LoaderIcon size={11} className="animate-spin" /> : saveSuccess ? <BookmarkCheckIcon size={11} /> : <BookmarkIcon size={11} />}
+                  {saveSuccess ? "Gespeichert!" : isAlreadySaved ? "Bereits gespeichert" : "Prompt speichern"}
+                </button>
+              </div>
+            </div>
+
+            {/* Saved prompts */}
+            <div>
+              <p className="text-[10px] text-white/25 mb-2">
+                Gespeicherte Prompts
+                {savedPrompts.length > 0 && (
+                  <span className="ml-1.5 text-[#1d4ed8]/60">({savedPrompts.length})</span>
+                )}
+              </p>
+              {savedPrompts.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-white/[0.08] p-4 text-center">
+                  <p className="text-[11px] text-white/25 leading-relaxed">
+                    Noch keine Prompts gespeichert. Gespeicherte Prompts werden von der KI analysiert,
+                    um zukünftig automatisch den passenden Stil für deine Bilder zu wählen.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {savedPrompts.map((p) => (
+                    <div
+                      key={p.id}
+                      className="group flex items-start gap-2 w-full text-left text-[11px] text-white/40 hover:text-white/70 px-3 py-2 rounded-lg border border-transparent hover:border-white/[0.08] hover:bg-white/[0.03] transition-all cursor-pointer"
+                      onClick={() => setPrompt(selected.id, p.text)}
+                    >
+                      <span className="flex-1 leading-relaxed">{p.text}</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeletePrompt(p.id); }}
+                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 mt-0.5 text-white/30 hover:text-red-400 transition-all"
+                      >
+                        <XIcon size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Generate button */}
+          <div className="px-4 py-4 border-t flex-shrink-0" style={{ borderColor: "var(--glass-border)" }}>
+            <button
+              onClick={() => onGenerate(selected.id)}
+              disabled={isProcessing || !selected.prompt.trim()}
+              className={cn(
+                "w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all duration-200",
+                isProcessing || !selected.prompt.trim()
+                  ? "bg-white/[0.04] text-white/20 cursor-not-allowed"
+                  : "text-white glow-accent hover:opacity-90 active:scale-[0.98]"
+              )}
+              style={!isProcessing && selected.prompt.trim() ? { background: "linear-gradient(135deg, #1d4ed8, #60a5fa)" } : {}}
+            >
+              {isProcessing ? (
+                <><LoaderIcon size={16} className="animate-spin" />Generiert...</>
+              ) : (
+                <><SparklesIcon size={16} />{hasResult ? "Erneut generieren" : "Mit Gemini generieren"}</>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Mobile: stacked layout ── */}
+      <div className="flex md:hidden flex-col h-full">
+        <div
+          className="px-4 py-3 border-b flex-shrink-0 flex items-center justify-between"
           style={{ borderColor: "var(--glass-border)" }}
         >
           <p className="text-xs font-medium text-white/60">Prompt & Generierung</p>
@@ -133,88 +339,60 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
               disabled={isGeneratingAll}
               className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-lg font-medium transition-all border border-[#1d4ed8]/30 text-[#60a5fa] hover:bg-[#1d4ed8]/10 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {isGeneratingAll ? (
-                <LoaderIcon size={11} className="animate-spin" />
-              ) : (
-                <SparklesIcon size={11} />
-              )}
-              Alle senden ({images.filter(i => i.prompt && i.status !== "done" && i.status !== "processing").length}/{images.length})
+              {isGeneratingAll ? <LoaderIcon size={11} className="animate-spin" /> : <SparklesIcon size={11} />}
+              Alle ({images.filter(i => i.prompt && i.status !== "done" && i.status !== "processing").length}/{images.length})
             </button>
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-          {/* Preview */}
-          <div className="relative">
-            <div
-              className={cn(
-                "aspect-square rounded-xl overflow-hidden relative border cursor-zoom-in",
-                hasResult ? "border-[#1d4ed8]/30" : "border-white/[0.06]"
-              )}
-              onClick={() => hasResult && setLightbox(true)}
-            >
-              <Image
-                src={previewSrc}
-                alt={hasResult ? "KI Ergebnis" : "Original"}
-                fill
-                className="object-contain"
-                sizes="(max-width: 768px) 100vw, 480px"
-                unoptimized
-              />
-
-              {isProcessing && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/65 backdrop-blur-sm">
-                  <LoaderIcon size={26} className="text-[#60a5fa] animate-spin" />
-                  <div className="text-center space-y-1">
-                    <p className="text-xs font-medium text-white/80">Gemini arbeitet…</p>
-                    <p className="text-[10px] text-white/40">Stil analysieren → Bild bearbeiten</p>
-                  </div>
-                </div>
-              )}
-
-              {hasResult && !isProcessing && (
-                <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-[#1d4ed8]/80 backdrop-blur-sm text-white border border-[#60a5fa]/30">
-                  <CheckCircleIcon size={10} />
-                  KI Ergebnis
-                </div>
-              )}
-
-              {hasResult && !isProcessing && (
-                <div className="absolute top-2 right-2 opacity-0 hover:opacity-100 transition-opacity">
-                  <div className="w-7 h-7 rounded-lg bg-black/60 border border-white/10 flex items-center justify-center">
-                    <MaximizeIcon size={12} className="text-white" />
-                  </div>
-                </div>
-              )}
+        {/* Image – fixed height on mobile */}
+        <div
+          className={cn(
+            "relative flex-shrink-0 border-b",
+            "h-[45vw] min-h-[180px] max-h-[280px]",
+          )}
+          style={{ borderColor: "var(--glass-border)" }}
+          onClick={() => hasResult && setLightbox(true)}
+        >
+          <Image
+            src={previewSrc}
+            alt={hasResult ? "KI Ergebnis" : "Original"}
+            fill
+            className="object-contain cursor-zoom-in"
+            sizes="100vw"
+            unoptimized
+          />
+          {isProcessing && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/65 backdrop-blur-sm">
+              <LoaderIcon size={22} className="text-[#60a5fa] animate-spin" />
+              <p className="text-[11px] text-white/60">Gemini arbeitet…</p>
             </div>
+          )}
+          {hasResult && !isProcessing && (
+            <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-[#1d4ed8]/80 backdrop-blur-sm text-white border border-[#60a5fa]/30">
+              <CheckCircleIcon size={10} />
+              KI Ergebnis
+            </div>
+          )}
+        </div>
 
-            {hasResult && !isProcessing && (
-              <div className="mt-2 flex gap-2">
-                <button
-                  onClick={() => useResultAsBase(selected.id)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-medium border border-[#1d4ed8]/25 text-[#60a5fa] hover:bg-[#1d4ed8]/10 transition-all"
-                >
-                  <RefreshCwIcon size={11} />
-                  Als Original
-                </button>
-                <button
-                  onClick={handleDownload}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-medium border border-white/10 text-white/60 hover:text-white hover:border-white/20 transition-all"
-                >
-                  <DownloadIcon size={11} />
-                  Download
-                </button>
-                <button
-                  onClick={() => setLightbox(true)}
-                  className="w-9 flex items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white hover:border-white/20 transition-all"
-                >
-                  <MaximizeIcon size={13} />
-                </button>
-              </div>
-            )}
+        {/* Mobile action buttons */}
+        {hasResult && !isProcessing && (
+          <div className="flex gap-2 px-4 py-2 flex-shrink-0 border-b" style={{ borderColor: "var(--glass-border)" }}>
+            <button onClick={() => useResultAsBase(selected.id)} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-medium border border-[#1d4ed8]/25 text-[#60a5fa] hover:bg-[#1d4ed8]/10 transition-all">
+              <RefreshCwIcon size={11} />Als Original
+            </button>
+            <button onClick={handleDownload} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-medium border border-white/10 text-white/60 hover:text-white transition-all">
+              <DownloadIcon size={11} />Download
+            </button>
+            <button onClick={() => setLightbox(true)} className="w-9 flex items-center justify-center rounded-lg border border-white/10 text-white/60 hover:text-white transition-all">
+              <MaximizeIcon size={13} />
+            </button>
           </div>
+        )}
 
-          {/* Prompt input + save */}
+        {/* Scrollable controls */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <label className="text-[11px] text-white/40">Dein Prompt</label>
@@ -235,72 +413,43 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
               rows={3}
               maxLength={2000}
               className="w-full rounded-xl border text-sm text-white/80 placeholder-white/20 p-3 resize-none focus:outline-none focus:ring-1 focus:ring-[#1d4ed8]/50 transition-colors"
-              style={{
-                background: "rgba(255,255,255,0.04)",
-                borderColor: "rgba(255,255,255,0.08)",
-              }}
+              style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.08)" }}
             />
             <div className="mt-2 flex items-center justify-between">
-              <span className="text-[10px] text-white/20">
-                {selected.prompt.length}/2000
-              </span>
+              <span className="text-[10px] text-white/20">{selected.prompt.length}/2000</span>
               <button
                 onClick={handleSavePrompt}
                 disabled={saving || !selected.prompt.trim() || isAlreadySaved}
                 className={cn(
                   "flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-lg font-medium transition-all border",
-                  saveSuccess
-                    ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
-                    : isAlreadySaved
-                    ? "border-white/10 text-white/25 cursor-default"
+                  saveSuccess ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
+                    : isAlreadySaved ? "border-white/10 text-white/25 cursor-default"
                     : "border-[#1d4ed8]/30 text-[#60a5fa] hover:bg-[#1d4ed8]/10 disabled:opacity-40 disabled:cursor-not-allowed"
                 )}
               >
-                {saving ? (
-                  <LoaderIcon size={11} className="animate-spin" />
-                ) : saveSuccess ? (
-                  <BookmarkCheckIcon size={11} />
-                ) : (
-                  <BookmarkIcon size={11} />
-                )}
+                {saving ? <LoaderIcon size={11} className="animate-spin" /> : saveSuccess ? <BookmarkCheckIcon size={11} /> : <BookmarkIcon size={11} />}
                 {saveSuccess ? "Gespeichert!" : isAlreadySaved ? "Bereits gespeichert" : "Prompt speichern"}
               </button>
             </div>
           </div>
 
-          {/* Saved prompts */}
           <div>
             <p className="text-[10px] text-white/25 mb-2">
               Gespeicherte Prompts
-              {savedPrompts.length > 0 && (
-                <span className="ml-1.5 text-[#1d4ed8]/60">({savedPrompts.length})</span>
-              )}
+              {savedPrompts.length > 0 && <span className="ml-1.5 text-[#1d4ed8]/60">({savedPrompts.length})</span>}
             </p>
             {savedPrompts.length === 0 ? (
               <div className="rounded-xl border border-dashed border-white/[0.08] p-4 text-center">
-                <p className="text-[11px] text-white/25 leading-relaxed">
-                  Noch keine Prompts gespeichert. Gespeicherte Prompts werden von der KI analysiert,
-                  um zukünftig automatisch den passenden Stil für deine Bilder zu wählen.
-                </p>
+                <p className="text-[11px] text-white/25 leading-relaxed">Noch keine Prompts gespeichert.</p>
               </div>
             ) : (
               <div className="space-y-1.5">
                 {savedPrompts.map((p) => (
-                  <div
-                    key={p.id}
-                    className="group flex items-start gap-2 w-full text-left text-[11px] text-white/40 hover:text-white/70 px-3 py-2 rounded-lg border border-transparent hover:border-white/[0.08] hover:bg-white/[0.03] transition-all cursor-pointer"
-                    onClick={() => {
-                      setPrompt(selected.id, p.text);
-                    }}
-                  >
+                  <div key={p.id} className="group flex items-start gap-2 w-full text-left text-[11px] text-white/40 hover:text-white/70 px-3 py-2 rounded-lg border border-transparent hover:border-white/[0.08] hover:bg-white/[0.03] transition-all cursor-pointer"
+                    onClick={() => setPrompt(selected.id, p.text)}>
                     <span className="flex-1 leading-relaxed">{p.text}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeletePrompt(p.id);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 flex-shrink-0 mt-0.5 text-white/30 hover:text-red-400 transition-all"
-                    >
+                    <button onClick={(e) => { e.stopPropagation(); handleDeletePrompt(p.id); }}
+                      className="opacity-0 group-hover:opacity-100 flex-shrink-0 mt-0.5 text-white/30 hover:text-red-400 transition-all">
                       <XIcon size={12} />
                     </button>
                   </div>
@@ -311,33 +460,17 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
         </div>
 
         {/* Generate button */}
-        <div className="px-5 py-4 border-t flex-shrink-0" style={{ borderColor: "var(--glass-border)" }}>
+        <div className="px-4 py-4 border-t flex-shrink-0" style={{ borderColor: "var(--glass-border)" }}>
           <button
             onClick={() => onGenerate(selected.id)}
             disabled={isProcessing || !selected.prompt.trim()}
             className={cn(
               "w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all duration-200",
-              isProcessing || !selected.prompt.trim()
-                ? "bg-white/[0.04] text-white/20 cursor-not-allowed"
-                : "text-white glow-accent hover:opacity-90 active:scale-[0.98]"
+              isProcessing || !selected.prompt.trim() ? "bg-white/[0.04] text-white/20 cursor-not-allowed" : "text-white glow-accent hover:opacity-90 active:scale-[0.98]"
             )}
-            style={
-              !isProcessing && selected.prompt.trim()
-                ? { background: "linear-gradient(135deg, #1d4ed8, #60a5fa)" }
-                : {}
-            }
+            style={!isProcessing && selected.prompt.trim() ? { background: "linear-gradient(135deg, #1d4ed8, #60a5fa)" } : {}}
           >
-            {isProcessing ? (
-              <>
-                <LoaderIcon size={16} className="animate-spin" />
-                Generiert...
-              </>
-            ) : (
-              <>
-                <SparklesIcon size={16} />
-                {hasResult ? "Erneut generieren" : "Mit Gemini generieren"}
-              </>
-            )}
+            {isProcessing ? <><LoaderIcon size={16} className="animate-spin" />Generiert...</> : <><SparklesIcon size={16} />{hasResult ? "Erneut generieren" : "Mit Gemini generieren"}</>}
           </button>
         </div>
       </div>
