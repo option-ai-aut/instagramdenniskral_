@@ -6,6 +6,7 @@ import fs from "fs";
 import path from "path";
 import { ImageResponse } from "next/og";
 import type { Slide, TextElement } from "@/store/canvasStore";
+import { buildGradientCss } from "@/store/canvasStore";
 import { collectSatoriFonts, type SatoriFontEntry } from "./satori-fonts";
 
 /** Load the bundled Inter TTF from /public/fonts as a guaranteed fallback. */
@@ -49,7 +50,12 @@ function fontWeightNum(fw: string | undefined): number {
 function buildBgStyle(slide: Slide): React.CSSProperties {
   const bg = slide.background;
   if (bg.type === "solid" && bg.color) return { backgroundColor: bg.color };
-  if (bg.type === "gradient" && bg.gradient) return { backgroundImage: bg.gradient };
+  if (bg.type === "gradient") {
+    const css = bg.customGradient
+      ? buildGradientCss(bg.customGradient)
+      : (bg.gradient ?? "linear-gradient(135deg,#050508,#111118)");
+    return { backgroundImage: css };
+  }
   if (bg.type === "image" && bg.imageUrl) return { backgroundImage: `url(${bg.imageUrl})`, backgroundSize: "cover" };
   return { backgroundColor: "#0a0a0f" };
 }

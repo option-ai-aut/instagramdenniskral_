@@ -2,7 +2,7 @@
 
 import { forwardRef } from "react";
 import { LockIcon } from "lucide-react";
-import { type Slide, type TextElement, useCanvasStore } from "@/store/canvasStore";
+import { type Slide, type TextElement, useCanvasStore, buildGradientCss } from "@/store/canvasStore";
 import { cn } from "@/lib/utils";
 
 const ASPECT_RATIOS: Record<string, string> = {
@@ -41,8 +41,11 @@ export const SlidePreview = forwardRef<HTMLDivElement, Props>(
 
     if (bg.type === "solid" && bg.color) {
       backgroundStyle = { backgroundColor: bg.color };
-    } else if (bg.type === "gradient" && bg.gradient) {
-      backgroundStyle = { background: bg.gradient };
+    } else if (bg.type === "gradient") {
+      const css = bg.customGradient
+        ? buildGradientCss(bg.customGradient)
+        : (bg.gradient ?? "linear-gradient(135deg,#050508,#111118)");
+      backgroundStyle = { background: css };
     } else if (bg.type === "image" && bg.imageUrl) {
       backgroundStyle = {
         backgroundImage: `url(${bg.imageUrl})`,

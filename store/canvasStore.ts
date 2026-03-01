@@ -21,10 +21,37 @@ export type TextElement = {
   locked?: boolean;
 };
 
+export type GradientStop = {
+  color: string;
+  position: number; // 0–100
+};
+
+export type CustomGradient = {
+  mode: "linear" | "radial";
+  angle: number;       // linear: 0–360 deg
+  cx: number;          // radial: center X 0–100%
+  cy: number;          // radial: center Y 0–100%
+  stops: GradientStop[]; // 2–4 stops
+};
+
+/** Build a CSS gradient string from a CustomGradient descriptor */
+export function buildGradientCss(cg: CustomGradient): string {
+  const stopStr = cg.stops
+    .slice()
+    .sort((a, b) => a.position - b.position)
+    .map((s) => `${s.color} ${s.position}%`)
+    .join(", ");
+  if (cg.mode === "radial") {
+    return `radial-gradient(ellipse at ${cg.cx}% ${cg.cy}%, ${stopStr})`;
+  }
+  return `linear-gradient(${cg.angle}deg, ${stopStr})`;
+}
+
 export type SlideBackground = {
   type: "solid" | "gradient" | "image";
   color?: string;
-  gradient?: string;
+  gradient?: string;           // legacy preset CSS string
+  customGradient?: CustomGradient; // custom builder
   imageUrl?: string;
 };
 
