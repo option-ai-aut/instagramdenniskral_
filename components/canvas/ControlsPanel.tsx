@@ -10,7 +10,7 @@ import type { Template, Slide } from "@/store/canvasStore";
 export type SavedCarousel = {
   id: string;
   title: string;
-  slidesJson: Slide[];
+  slidesJson: unknown;  // v0: Slide[] | v1: { slides: Slide[], grain: GrainSettings }
   updatedAt: string;
 };
 
