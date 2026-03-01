@@ -115,9 +115,12 @@ type CanvasStore = {
   carouselTitle: string;
   savedCarouselId: string | null;
   templates: Template[];
+  /** Global grain intensity for all slides: 0 = off, 100 = max */
+  grainIntensity: number;
 
   setTitle: (title: string) => void;
   setSavedId: (id: string | null) => void;
+  setGrainIntensity: (v: number) => void;
   addSlide: () => void;
   removeSlide: (id: string) => void;
   duplicateSlide: (id: string) => void;
@@ -142,8 +145,10 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
     carouselTitle: "Neues Karussell",
     savedCarouselId: null,
     templates: TEMPLATES,
+    grainIntensity: 30,
 
     setTitle: (title) => set({ carouselTitle: title }),
+    setGrainIntensity: (v) => set({ grainIntensity: Math.max(0, Math.min(100, v)) }),
     setSavedId: (id) => set({ savedCarouselId: id }),
 
     addSlide: () => {

@@ -21,11 +21,13 @@ export async function POST(req: NextRequest) {
 
   let slides: Slide[];
   let title: string;
+  let grainIntensity: number;
 
   try {
     const body = await req.json();
     slides = Array.isArray(body.slides) ? body.slides : [];
     title = typeof body.title === "string" && body.title.trim() ? body.title.trim() : "carousel";
+    grainIntensity = typeof body.grainIntensity === "number" ? Math.max(0, Math.min(100, body.grainIntensity)) : 0;
   } catch {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest) {
     const safeTitle = title.replace(/[^a-z0-9_\-]/gi, "-").toLowerCase();
 
     for (let i = 0; i < slides.length; i++) {
-      const buffer = await renderSlideToPng(slides[i]);
+      const buffer = await renderSlideToPng(slides[i], grainIntensity);
       zip.file(`${safeTitle}-slide-${i + 1}.png`, buffer);
     }
 

@@ -46,11 +46,17 @@ export async function GET(
       return new Response("Carousel has no slides", { status: 400 });
     }
 
+    // Read optional grain intensity from query param: ?grain=30 (0-100, default 0)
+    const grainParam = req.nextUrl.searchParams.get("grain");
+    const grainIntensity = grainParam !== null
+      ? Math.max(0, Math.min(100, Number(grainParam) || 0))
+      : 0;
+
     const zip = new JSZip();
     const safeTitle = (carousel.title ?? "carousel").replace(/[^a-z0-9_\-]/gi, "-").toLowerCase();
 
     for (let i = 0; i < slides.length; i++) {
-      const buffer = await renderSlideToPng(slides[i]);
+      const buffer = await renderSlideToPng(slides[i], grainIntensity);
       zip.file(`slide-${i + 1}.png`, buffer);
     }
 

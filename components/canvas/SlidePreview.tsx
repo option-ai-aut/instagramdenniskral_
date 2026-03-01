@@ -2,7 +2,7 @@
 
 import { forwardRef } from "react";
 import { LockIcon } from "lucide-react";
-import { type Slide, type TextElement } from "@/store/canvasStore";
+import { type Slide, type TextElement, useCanvasStore } from "@/store/canvasStore";
 import { cn } from "@/lib/utils";
 
 const ASPECT_RATIOS: Record<string, string> = {
@@ -35,6 +35,7 @@ type Props = {
 
 export const SlidePreview = forwardRef<HTMLDivElement, Props>(
   ({ slide, selectedElementId, onSelectElement, scale = 1, interactive = false }, ref) => {
+    const grainIntensity = useCanvasStore((s) => s.grainIntensity);
     const bg = slide.background;
     let backgroundStyle: React.CSSProperties = {};
 
@@ -57,6 +58,24 @@ export const SlidePreview = forwardRef<HTMLDivElement, Props>(
         style={backgroundStyle}
         onClick={() => interactive && onSelectElement?.(null)}
       >
+        {/* Grain overlay */}
+        {grainIntensity > 0 && (
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              inset: 0,
+              backgroundImage: "url(/textures/grain.png)",
+              backgroundRepeat: "repeat",
+              backgroundSize: `${Math.round(256 * scale)}px`,
+              opacity: (grainIntensity / 100) * 0.45,
+              mixBlendMode: "overlay",
+              pointerEvents: "none",
+              zIndex: 10,
+            }}
+          />
+        )}
+
         {slide.elements.map((el) => (
           <ElementRenderer
             key={el.id}

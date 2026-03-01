@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import { useCanvasStore, type SlideBackground } from "@/store/canvasStore";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +36,37 @@ const SOLID_COLORS = [
   "#000000", "#0a0a0f", "#111118", "#1a1a24",
   "#ffffff", "#f0f0f5",
 ];
+
+function GrainSlider() {
+  const grainIntensity = useCanvasStore((s) => s.grainIntensity);
+  const setGrainIntensity = useCanvasStore((s) => s.setGrainIntensity);
+  const [local, setLocal] = useState(grainIntensity);
+
+  useEffect(() => { setLocal(grainIntensity); }, [grainIntensity]);
+
+  const handleCommit = useCallback((e: React.PointerEvent<HTMLInputElement>) => {
+    setGrainIntensity(Number((e.target as HTMLInputElement).value));
+  }, [setGrainIntensity]);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] text-white/30">Grain (alle Slides)</p>
+        <span className="text-[10px] text-white/50">{local}%</span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        value={local}
+        onChange={(e) => setLocal(Number(e.target.value))}
+        onPointerUp={handleCommit}
+        className="w-full accent-[#1d4ed8]"
+      />
+      <p className="text-[9px] text-white/20 mt-1">0 = kein Grain · 100 = maximal</p>
+    </div>
+  );
+}
 
 export function BackgroundControls() {
   const { slides, selectedSlideId, updateSlide } = useCanvasStore();
@@ -150,6 +182,11 @@ export function BackgroundControls() {
             />
           </div>
         )}
+
+        {/* Global grain */}
+        <div className="pt-2 border-t" style={{ borderColor: "var(--glass-border)" }}>
+          <GrainSlider />
+        </div>
       </div>
     </div>
   );

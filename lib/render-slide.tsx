@@ -60,8 +60,22 @@ const ANCHOR_TRANSFORM: Record<string, string> = {
   bottom: "translateY(-100%)",
 };
 
+/** Load the bundled grain texture as a base64 data URL for Satori overlay. */
+function getGrainDataUrl(): string | null {
+  try {
+    const grainPath = path.join(process.cwd(), "public", "textures", "grain.png");
+    const buf = fs.readFileSync(grainPath);
+    return `data:image/png;base64,${buf.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
 /** Render a slide to a PNG ArrayBuffer via Satori. */
-export async function renderSlideToPng(slide: Slide): Promise<ArrayBuffer> {
+export async function renderSlideToPng(
+  slide: Slide,
+  grainIntensity = 0,
+): Promise<ArrayBuffer> {
   const W = SLIDE_WIDTH;
   const H = getSlideHeight(slide.aspectRatio ?? "4:5");
   const bgStyle = buildBgStyle(slide);
@@ -92,6 +106,10 @@ export async function renderSlideToPng(slide: Slide): Promise<ArrayBuffer> {
     throw new Error("No fonts available for rendering");
   }
 
+  const grainDataUrl = grainIntensity > 0 ? getGrainDataUrl() : null;
+  const grainOpacity = (grainIntensity / 100) * 0.45;
+  const grainTileSize = 256; // matches the grain.png dimensions
+
   const response = new ImageResponse(
     (
       <div
@@ -105,6 +123,37 @@ export async function renderSlideToPng(slide: Slide): Promise<ArrayBuffer> {
           ...bgStyle,
         }}
       >
+        {/* Grain overlay via tiled img elements */}
+        {grainDataUrl && grainOpacity > 0 && (() => {
+          const cols = Math.ceil(W / grainTileSize);
+          const rows = Math.ceil(H / grainTileSize);
+          const tiles: React.ReactElement[] = [];
+          for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+              tiles.push(
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={`g-${r}-${c}`}
+                  src={grainDataUrl}
+                  width={grainTileSize}
+                  height={grainTileSize}
+                  style={{
+                    position: "absolute",
+                    top: r * grainTileSize,
+                    left: c * grainTileSize,
+                    width: grainTileSize,
+                    height: grainTileSize,
+                    opacity: grainOpacity,
+                    mixBlendMode: "overlay",
+                  }}
+                  alt=""
+                />
+              );
+            }
+          }
+          return tiles;
+        })()}
+
         {elements.map((el) => {
           const alignMap: Record<string, "center" | "flex-start" | "flex-end"> = {
             center: "center",
