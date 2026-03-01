@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useImageEditorStore, type EditorImage } from "@/store/imageEditorStore";
 import { ImageDropzone } from "./ImageDropzone";
 import { InstagramImport } from "./InstagramImport";
+import { InstagramSettings } from "./InstagramSettings";
 import { nanoid } from "@/lib/nanoid";
 
 const statusLabels: Record<string, string> = {
@@ -49,7 +50,12 @@ export function ImageList() {
             Bilder <span className="text-white/30">{images.length}/20</span>
           </p>
         </div>
-        <InstagramImport onImport={handleInstagramImport} disabled={!canAdd} />
+        <div className="flex items-center gap-1.5">
+          <div className="flex-1">
+            <InstagramImport onImport={handleInstagramImport} disabled={!canAdd} />
+          </div>
+          <InstagramSettings />
+        </div>
       </div>
 
       {/* Desktop: vertical scroll list */}

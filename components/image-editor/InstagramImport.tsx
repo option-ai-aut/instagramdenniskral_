@@ -27,6 +27,8 @@ type Props = {
   disabled?: boolean;
 };
 
+const IG_SESSION_KEY = "ig_session_id";
+
 export function InstagramImport({ onImport, disabled }: Props) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState("");
@@ -35,10 +37,12 @@ export function InstagramImport({ onImport, disabled }: Props) {
   const [fetched, setFetched] = useState<ImportedImage[] | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [mounted, setMounted] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setMounted(true);
+    setHasSession(!!(localStorage.getItem(IG_SESSION_KEY)));
   }, []);
 
   const handleOpen = () => {
@@ -66,17 +70,17 @@ export function InstagramImport({ onImport, disabled }: Props) {
     setSelected(new Set());
 
     try {
+      const sessionId = localStorage.getItem(IG_SESSION_KEY) ?? "";
       const res = await fetch("/api/instagram/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
+        body: JSON.stringify({ url: url.trim(), sessionId: sessionId || undefined }),
       });
       const data = await res.json();
 
       if (!res.ok) {
-        // Show setup instructions if session not configured
-        if (data.setupRequired && Array.isArray(data.instructions)) {
-          setError("⚙️ Einrichtung nötig:\n" + data.instructions.join("\n"));
+        if (data.setupRequired) {
+          setError("⚙️ Instagram-Session fehlt!\n\nKlicke auf das Zahnrad-Symbol neben dem Import-Button, um deinen Session-Cookie einzugeben.");
         } else {
           setError(data.error ?? "Fehler beim Importieren");
         }
@@ -168,6 +172,16 @@ export function InstagramImport({ onImport, disabled }: Props) {
 
         {/* Content */}
         <div className="p-5 space-y-4">
+          {/* No-session warning */}
+          {!fetched && !hasSession && (
+            <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5">
+              <AlertCircleIcon size={12} className="text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-[10px] text-amber-400/80 leading-relaxed">
+                Kein Session-Cookie konfiguriert. Klicke auf das <strong>Zahnrad-Symbol</strong> im Image Editor, um deinen Instagram-Cookie einzutragen.
+              </p>
+            </div>
+          )}
+
           {/* URL Input — shown before fetch result */}
           {!fetched && (
             <div className="space-y-3">
