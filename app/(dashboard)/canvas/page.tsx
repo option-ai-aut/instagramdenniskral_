@@ -24,6 +24,7 @@ function CanvasInner() {
 
   const [tab, setTab] = useState<ControlsTab>("elements");
   const [mobileView, setMobileView] = useState<MobileView>("preview");
+  const [zoom, setZoom] = useState(1);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -289,24 +290,56 @@ function CanvasInner() {
           <SlideList />
         </div>
 
-        <div className="flex-1 overflow-auto flex items-center justify-center p-8">
+        {/* Canvas preview area with zoom */}
+        <div
+          className="flex-1 overflow-auto flex items-center justify-center p-8 relative"
+          onWheel={(e) => {
+            if (!e.ctrlKey && !e.metaKey) return;
+            e.preventDefault();
+            setZoom((z) => Math.min(3, Math.max(0.25, z - e.deltaY * 0.001)));
+          }}
+        >
           {selectedSlide ? (
-            <div
-              className="w-full max-w-[380px] rounded-2xl overflow-hidden shadow-2xl"
-              style={{ boxShadow: "0 0 60px rgba(29, 78, 216,0.15), 0 0 0 1px rgba(255,255,255,0.05)" }}
-            >
-              <SlidePreview
-                ref={slideRef}
-                slide={selectedSlide}
-                selectedElementId={selectedElementId}
-                onSelectElement={selectElement}
-                scale={1}
-                interactive
-              />
+            <div style={{ transform: `scale(${zoom})`, transformOrigin: "center center", transition: "transform 0.1s ease" }}>
+              <div
+                className="w-[380px] rounded-2xl overflow-hidden shadow-2xl"
+                style={{ boxShadow: "0 0 60px rgba(29, 78, 216,0.15), 0 0 0 1px rgba(255,255,255,0.05)" }}
+              >
+                <SlidePreview
+                  ref={slideRef}
+                  slide={selectedSlide}
+                  selectedElementId={selectedElementId}
+                  onSelectElement={selectElement}
+                  scale={1}
+                  interactive
+                />
+              </div>
             </div>
           ) : (
             <p className="text-white/20 text-sm">Kein Slide ausgewählt</p>
           )}
+
+          {/* Zoom controls – bottom center */}
+          <div
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1 px-2 py-1.5 rounded-xl border"
+            style={{ background: "rgba(17,17,24,0.90)", borderColor: "rgba(255,255,255,0.08)", backdropFilter: "blur(12px)" }}
+          >
+            <button
+              onClick={() => setZoom((z) => Math.max(0.25, +(z - 0.1).toFixed(2)))}
+              className="w-6 h-6 flex items-center justify-center rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] transition-all text-sm font-medium"
+              title="Verkleinern"
+            >−</button>
+            <button
+              onClick={() => setZoom(1)}
+              className="px-2 py-0.5 rounded-lg text-[10px] font-mono text-white/50 hover:text-white hover:bg-white/[0.06] transition-all min-w-[44px] text-center"
+              title="Zoom zurücksetzen"
+            >{Math.round(zoom * 100)}%</button>
+            <button
+              onClick={() => setZoom((z) => Math.min(3, +(z + 0.1).toFixed(2)))}
+              className="w-6 h-6 flex items-center justify-center rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] transition-all text-sm font-medium"
+              title="Vergrößern"
+            >+</button>
+          </div>
         </div>
 
         <div className="w-[260px] flex-shrink-0 flex flex-col border-l glass" style={{ borderColor: "var(--glass-border)" }}>
