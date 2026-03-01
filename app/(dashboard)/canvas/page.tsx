@@ -104,7 +104,6 @@ function CanvasInner() {
 
   const handleLoadCarousel = useCallback((carousel: SavedCarousel) => {
     loadCarousel(carousel.id, carousel.title, carousel.slidesJson);
-    setTab("elements");
     setMobileView("preview");
   }, [loadCarousel]);
 
@@ -178,7 +177,6 @@ function CanvasInner() {
 
   const handleLoadTemplate = useCallback((id: string) => {
     loadTemplate(id);
-    setTab("elements");
     setMobileView("preview");
   }, [loadTemplate]);
 

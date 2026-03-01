@@ -199,7 +199,7 @@ export function ControlsPanel({
 
                         {/* Action buttons */}
                         {!isRenaming && (
-                          <div className="flex items-center gap-1 px-3 pb-2">
+                          <div className="flex flex-wrap items-center gap-1 px-3 pb-2.5">
                             {isActive && (
                               <button
                                 onClick={() => onOverwriteCarousel(c.id)}
@@ -228,7 +228,7 @@ export function ControlsPanel({
                             <button
                               onClick={() => onDeleteCarousel(c.id)}
                               disabled={deletingId === c.id}
-                              className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border border-white/[0.06] text-white/25 hover:text-red-400 hover:border-red-500/30 transition-all disabled:opacity-40 ml-auto"
+                              className="flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border border-white/[0.06] text-white/25 hover:text-red-400 hover:border-red-500/30 transition-all disabled:opacity-40"
                             >
                               {deletingId === c.id
                                 ? <LoaderIcon size={9} className="animate-spin" />
