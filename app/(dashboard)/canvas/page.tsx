@@ -23,17 +23,27 @@ function CanvasInner() {
   const selectedSlide = slides.find((s) => s.id === selectedSlideId);
   const slideRef = useRef<HTMLDivElement>(null);
 
-  // Auto-save grain whenever it changes (debounced 800ms), only for saved carousels
-  const grainAutoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // ── Auto-save: debounced PATCH to DB whenever slides or grain change ──────
+  // Only fires when a carousel is already saved (savedCarouselId is set).
+  // Debounce: 1.5s after the last change so rapid edits don't spam the API.
+  const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoSaveIndicatorRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [autoSaved, setAutoSaved] = useState(false);
+
   useEffect(() => {
-    if (!savedCarouselId) return; // no saved carousel → nothing to patch
-    if (grainAutoSaveRef.current) clearTimeout(grainAutoSaveRef.current);
-    grainAutoSaveRef.current = setTimeout(async () => {
+    if (!savedCarouselId) return;
+    if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
+    if (autoSaveIndicatorRef.current) clearTimeout(autoSaveIndicatorRef.current);
+
+    autoSaveRef.current = setTimeout(async () => {
+      setAutoSaving(true);
       try {
         await fetch(`/api/carousel/${savedCarouselId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            title: carouselTitle,
             slidesJson: buildSlidesPayload(slides, {
               intensity: grainIntensity,
               size: grainSize,
@@ -42,14 +52,20 @@ function CanvasInner() {
             }),
           }),
         });
+        setAutoSaved(true);
+        autoSaveIndicatorRef.current = setTimeout(() => setAutoSaved(false), 2000);
       } catch {
-        // silent – non-critical
+        // silent – non-critical, user can still manually save
+      } finally {
+        setAutoSaving(false);
       }
-    }, 800);
-    return () => { if (grainAutoSaveRef.current) clearTimeout(grainAutoSaveRef.current); };
-  // Only watch grain values, not slides (slides have their own save path)
+    }, 1500);
+
+    return () => {
+      if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grainIntensity, grainSize, grainDensity, grainSharpness, savedCarouselId]);
+  }, [slides, grainIntensity, grainSize, grainDensity, grainSharpness, savedCarouselId, carouselTitle]);
 
   const [tab, setTab] = useState<ControlsTab>("elements");
   const [mobileView, setMobileView] = useState<MobileView>("preview");
@@ -282,10 +298,22 @@ function CanvasInner() {
           placeholder="Titel..."
         />
 
+        {/* Auto-save indicator */}
         {savedCarouselId && (
-          <span className="hidden sm:flex text-[10px] px-2 py-0.5 rounded-full bg-[#1d4ed8]/15 text-[#60a5fa]/70 border border-[#1d4ed8]/20 items-center gap-1 flex-shrink-0">
-            <BookmarkIcon size={9} />
-            Gespeichert
+          <span className={cn(
+            "hidden sm:flex text-[10px] px-2 py-0.5 rounded-full items-center gap-1 flex-shrink-0 transition-all duration-300",
+            autoSaving
+              ? "bg-amber-500/10 text-amber-400/70 border border-amber-500/20"
+              : autoSaved
+              ? "bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/20"
+              : "bg-[#1d4ed8]/15 text-[#60a5fa]/70 border border-[#1d4ed8]/20"
+          )}>
+            {autoSaving
+              ? <><LoaderIcon size={9} className="animate-spin" />Speichert…</>
+              : autoSaved
+              ? <><CheckIcon size={9} />Gespeichert</>
+              : <><BookmarkIcon size={9} />Gespeichert</>
+            }
           </span>
         )}
 
