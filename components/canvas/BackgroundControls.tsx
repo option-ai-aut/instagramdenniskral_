@@ -268,6 +268,11 @@ export function BackgroundControls() {
 
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
 
+        {/* ── Global grain – IMMER OBEN ── */}
+        <div className="rounded-xl border p-3" style={{ borderColor: "rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)" }}>
+          <GrainSlider />
+        </div>
+
         {/* ── Aspect ratio ── */}
         <div>
           <p className="text-[10px] text-white/30 mb-2">Format</p>
@@ -391,11 +396,6 @@ export function BackgroundControls() {
             />
           </div>
         )}
-
-        {/* ── Global grain ── */}
-        <div className="rounded-xl border p-3" style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
-          <GrainSlider />
-        </div>
 
       </div>
     </div>
