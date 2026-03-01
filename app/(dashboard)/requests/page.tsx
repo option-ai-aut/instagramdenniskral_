@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import {
   DownloadIcon, RefreshCwIcon, LoaderIcon, ZapIcon, ChevronDownIcon, ChevronUpIcon,
   FileArchiveIcon, LayoutTemplateIcon, CalendarIcon, LayersIcon, CodeIcon,
+  KeyIcon, CopyIcon, CheckIcon, EyeIcon, EyeOffIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -224,6 +225,73 @@ function RequestCard({ req }: { req: OpenlawRequest }) {
   );
 }
 
+function ApiKeyPanel() {
+  const [key, setKey] = useState<string | null>(null);
+  const [visible, setVisible] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/settings/key")
+      .then((r) => r.json())
+      .then((d) => setKey(d.key ?? ""))
+      .catch(() => setKey(""));
+  }, []);
+
+  const handleCopy = async () => {
+    if (!key) return;
+    await navigator.clipboard.writeText(key);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const maskedKey = key
+    ? key.slice(0, 8) + "•".repeat(Math.max(0, key.length - 12)) + key.slice(-4)
+    : "…";
+
+  return (
+    <div
+      className="rounded-2xl border px-4 py-3.5 flex flex-col sm:flex-row sm:items-center gap-3"
+      style={{ background: "rgba(29,78,216,0.04)", borderColor: "rgba(29,78,216,0.15)" }}
+    >
+      <div className="flex items-center gap-2.5 flex-1 min-w-0">
+        <div
+          className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center"
+          style={{ background: "rgba(29,78,216,0.12)", border: "1px solid rgba(29,78,216,0.2)" }}
+        >
+          <KeyIcon size={13} className="text-[#60a5fa]" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[11px] text-white/40 mb-0.5">Openclaw API Key</p>
+          <code className="text-[12px] font-mono text-white/70 truncate block">
+            {key === null ? "…" : (visible ? key : maskedKey)}
+          </code>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <button
+          onClick={() => setVisible((v) => !v)}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] text-white/40 hover:text-white/70 border border-white/[0.07] hover:border-white/[0.14] transition-all"
+        >
+          {visible ? <EyeOffIcon size={11} /> : <EyeIcon size={11} />}
+          {visible ? "Verbergen" : "Anzeigen"}
+        </button>
+        <button
+          onClick={handleCopy}
+          className={cn(
+            "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] transition-all border",
+            copied
+              ? "border-emerald-500/30 text-emerald-400"
+              : "border-[#1d4ed8]/25 text-[#60a5fa] hover:bg-[#1d4ed8]/10"
+          )}
+        >
+          {copied ? <CheckIcon size={11} /> : <CopyIcon size={11} />}
+          {copied ? "Kopiert!" : "Kopieren"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function RequestsPage() {
   const [requests, setRequests] = useState<OpenlawRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -289,6 +357,11 @@ export default function RequestsPage() {
 
       {/* Content */}
       <div className="relative z-10 flex-1 overflow-y-auto px-4 py-4">
+        {/* API Key section */}
+        <div className="max-w-2xl mx-auto mb-4">
+          <ApiKeyPanel />
+        </div>
+
         {loading ? (
           <div className="flex items-center justify-center h-40 gap-2 text-white/30">
             <LoaderIcon size={16} className="animate-spin" />
