@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { XIcon } from "lucide-react";
+import { XIcon, DownloadIcon } from "lucide-react";
+import { downloadDataUrl } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useImageEditorStore, type EditorImage } from "@/store/imageEditorStore";
 import { ImageDropzone } from "./ImageDropzone";
@@ -105,6 +106,11 @@ function DesktopImageCard({ img, index, selected, onSelect, onRemove }: {
   img: EditorImage; index: number; selected: boolean;
   onSelect: () => void; onRemove: () => void;
 }) {
+  const handleDownload = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    downloadDataUrl(img.originalDataUrl, `original-${index + 1}.jpg`);
+  };
+
   return (
     <div
       onClick={onSelect}
@@ -128,11 +134,20 @@ function DesktopImageCard({ img, index, selected, onSelect, onRemove }: {
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
           </div>
         )}
+        {/* Top-right: delete */}
         <button
           onClick={(e) => { e.stopPropagation(); onRemove(); }}
           className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/70 border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/80"
         >
           <XIcon size={10} className="text-white" />
+        </button>
+        {/* Top-left: download original */}
+        <button
+          onClick={handleDownload}
+          title="Original herunterladen"
+          className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-black/70 border border-white/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/20"
+        >
+          <DownloadIcon size={10} className="text-white" />
         </button>
       </div>
       <div className="px-2 py-1.5 flex items-center justify-between" style={{ background: "rgba(17,17,24,0.9)" }}>
@@ -149,6 +164,11 @@ function MobileImageCard({ img, index, selected, onSelect, onRemove }: {
   img: EditorImage; index: number; selected: boolean;
   onSelect: () => void; onRemove: () => void;
 }) {
+  const handleDownload = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    downloadDataUrl(img.originalDataUrl, `original-${index + 1}.jpg`);
+  };
+
   return (
     <div
       onClick={onSelect}
@@ -180,12 +200,24 @@ function MobileImageCard({ img, index, selected, onSelect, onRemove }: {
           </div>
         )}
 
+        {/* Delete */}
         <button
           onClick={(e) => { e.stopPropagation(); onRemove(); }}
           className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/80 border border-white/10 flex items-center justify-center"
         >
           <XIcon size={9} className="text-white/60" />
         </button>
+
+        {/* Download original – shown when selected */}
+        {selected && (
+          <button
+            onClick={handleDownload}
+            title="Original herunterladen"
+            className="absolute bottom-1 right-1 w-5 h-5 rounded-full bg-black/80 border border-white/10 flex items-center justify-center"
+          >
+            <DownloadIcon size={9} className="text-white/60" />
+          </button>
+        )}
       </div>
     </div>
   );
