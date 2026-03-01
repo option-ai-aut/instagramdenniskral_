@@ -51,17 +51,26 @@ export function ImageDropzone() {
     <div
       {...getRootProps()}
       className={cn(
-        "border border-dashed rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all duration-200 text-center",
+        "cursor-pointer transition-all duration-200 active:scale-[0.98] rounded-xl border",
+        // Mobile: compact row button
+        "flex items-center justify-center gap-2 px-4 py-3",
+        // Desktop: taller drop zone with icon + text stacked
+        "md:flex-col md:p-4 md:border-dashed md:text-center",
         isDragActive
           ? "border-[#1d4ed8] bg-[#1d4ed8]/10"
-          : "border-white/10 hover:border-white/20 hover:bg-white/[0.02]"
+          : "border-white/[0.1] bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"
       )}
     >
       <input {...getInputProps()} />
-      <UploadCloudIcon size={20} className={cn(isDragActive ? "text-[#60a5fa]" : "text-white/20")} />
-      <p className="text-[11px] text-white/30 leading-relaxed">
-        {isDragActive ? "Loslassen zum Hinzufügen" : `Bilder hinzufügen (${remaining} verfügbar)`}
-      </p>
+      <UploadCloudIcon size={16} className={cn(isDragActive ? "text-[#60a5fa]" : "text-white/40")} />
+      <div>
+        <p className="text-[12px] text-white/50 font-medium leading-none">
+          {isDragActive ? "Loslassen" : "Aus Galerie"}
+        </p>
+        <p className="text-[10px] text-white/25 mt-0.5 hidden md:block">
+          {remaining} verfügbar · Drag & Drop
+        </p>
+      </div>
     </div>
   );
 }

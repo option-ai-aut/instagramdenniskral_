@@ -189,10 +189,6 @@ export default function ImageEditorPage() {
   const hasImages = images.length > 0;
   const hasNoSavedPrompts = savedPromptsCount === 0;
 
-  const handleMobileImageSelect = () => {
-    setMobileTab("prompt");
-  };
-
   const SmartButton = (
     <div className="relative">
       <button
@@ -312,6 +308,7 @@ export default function ImageEditorPage() {
 
       {/* ── MOBILE: 2-Tab layout ── */}
       <div className="flex md:hidden flex-col flex-1 overflow-hidden relative z-10">
+        {/* Tab bar */}
         <div
           className="flex-shrink-0 flex border-b"
           style={{ background: "rgba(17,17,24,0.95)", borderColor: "var(--glass-border)" }}
@@ -349,11 +346,53 @@ export default function ImageEditorPage() {
           })}
         </div>
 
-        <div className="flex-1 overflow-hidden">
+        {/* Tab content */}
+        <div className="flex-1 overflow-hidden flex flex-col">
           {mobileTab === "images" && (
-            <div className="h-full" onClick={handleMobileImageSelect}>
-              <ImageList />
-            </div>
+            <>
+              <div className="flex-1 overflow-hidden">
+                {/* Pass onImageTap: tapping a thumbnail selects it AND switches to Prompt tab */}
+                <ImageList onImageTap={() => setMobileTab("prompt")} />
+              </div>
+
+              {/* Sticky CTA bar – visible when an image is selected */}
+              {hasImages && selectedId && (
+                <div
+                  className="flex-shrink-0 border-t px-4 py-3 flex items-center justify-between gap-3"
+                  style={{ background: "rgba(17,17,24,0.97)", borderColor: "var(--glass-border)" }}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    {/* Tiny thumb of selected image */}
+                    {(() => {
+                      const sel = images.find((i) => i.id === selectedId);
+                      return sel ? (
+                        <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0 border border-white/10">
+                          <img src={sel.resultDataUrl ?? sel.originalDataUrl} alt="" className="w-full h-full object-cover" />
+                        </div>
+                      ) : null;
+                    })()}
+                    <span className="text-[11px] text-white/50 truncate">
+                      {(() => {
+                        const idx = images.findIndex((i) => i.id === selectedId);
+                        const sel = images[idx];
+                        if (!sel) return "";
+                        if (sel.status === "done") return "Generiert ✓";
+                        if (sel.status === "processing") return "Wird generiert…";
+                        if (sel.status === "error") return "Fehler";
+                        return `Bild ${idx + 1} ausgewählt`;
+                      })()}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setMobileTab("prompt")}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold text-white bg-[#1d4ed8] active:scale-[0.97] transition-transform flex-shrink-0"
+                  >
+                    <SparklesIcon size={13} />
+                    Bearbeiten
+                  </button>
+                </div>
+              )}
+            </>
           )}
           {mobileTab === "prompt" && (
             <PromptPanel

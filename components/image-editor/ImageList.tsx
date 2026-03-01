@@ -25,7 +25,11 @@ function StatusBadge({ status }: { status: EditorImage["status"] }) {
   );
 }
 
-export function ImageList() {
+type Props = {
+  onImageTap?: () => void; // called when a mobile image card is tapped (select → edit)
+};
+
+export function ImageList({ onImageTap }: Props = {}) {
   const { images, selectedId, selectImage, removeImage, addImages } = useImageEditorStore();
   const canAdd = images.length < 20;
 
@@ -74,12 +78,26 @@ export function ImageList() {
         <ImageDropzone />
       </div>
 
-      {/* Mobile: horizontal scroll + grid */}
+      {/* Mobile: grid */}
       <div className="flex md:hidden flex-col flex-1 overflow-hidden">
         {/* Upload button at top */}
         <div className="px-3 pt-3 pb-2 flex-shrink-0">
           <ImageDropzone />
         </div>
+        {images.length > 0 && (
+          <p className="px-3 pb-1 text-[10px] text-white/30 flex-shrink-0">
+            Bild antippen zum Bearbeiten
+          </p>
+        )}
+
+        {images.length === 0 && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center pb-8">
+            <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center">
+              <span className="text-2xl">🖼️</span>
+            </div>
+            <p className="text-sm text-white/40">Lade Bilder hoch oder importiere sie von Instagram</p>
+          </div>
+        )}
 
         {images.length > 0 && (
           <div className="flex-1 overflow-y-auto px-3 pb-3">
@@ -90,7 +108,10 @@ export function ImageList() {
                   img={img}
                   index={index}
                   selected={selectedId === img.id}
-                  onSelect={() => selectImage(img.id)}
+                  onSelect={() => {
+                    selectImage(img.id);
+                    onImageTap?.();
+                  }}
                   onRemove={() => removeImage(img.id)}
                 />
               ))}
