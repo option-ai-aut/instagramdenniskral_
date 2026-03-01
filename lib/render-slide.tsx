@@ -222,7 +222,7 @@ export async function renderSlideToPng(
                   padding: `0 ${SATORI_PADDING}px`,
               }}
             >
-              {el.text.split("\n").map((line: string, li: number) => (
+              {el.text.replace(/\\n/g, "\n").split("\n").map((line: string, li: number) => (
                 <span
                   key={li}
                   style={{
