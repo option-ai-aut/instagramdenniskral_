@@ -18,6 +18,12 @@ export type TextElement = {
   y: number;
   /** Vertical anchor: where Y% is pinned. "top" = top edge, "center" = middle (default), "bottom" = bottom edge */
   verticalAnchor?: "top" | "center" | "bottom";
+  /** Line height multiplier, e.g. 1.0 – 3.0. Default: 1.3 */
+  lineHeight?: number;
+  /** Letter spacing in em, e.g. -0.05 – 0.3. Default: 0 */
+  letterSpacing?: number;
+  /** Horizontal padding from image edge in %, 0–40. Default: 6 (≈ px-6 at design width) */
+  paddingX?: number;
   /** When true the element is fixed/anchored – Openclaw textOverrides cannot change it */
   locked?: boolean;
 };

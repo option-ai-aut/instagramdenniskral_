@@ -31,8 +31,10 @@ export const SLIDE_WIDTH = 1080;
 const DESIGN_WIDTH = 380;
 const DESIGN_SCALE = SLIDE_WIDTH / DESIGN_WIDTH; // ≈ 2.842
 
-/** Editor uses px-6 (24px) padding. Scale to Satori canvas. */
+/** Default horizontal padding (px-6 = 6% of 380px ≈ 24px). Scaled to Satori canvas. */
 const SATORI_PADDING = Math.round(24 * DESIGN_SCALE); // ≈ 68px
+/** Slide width used to convert paddingX % to px at Satori resolution */
+const SATORI_SLIDE_WIDTH = SLIDE_WIDTH;
 
 export function getSlideHeight(aspectRatio: string): number {
   if (aspectRatio === "1:1") return SLIDE_WIDTH;
@@ -236,6 +238,19 @@ export async function renderSlideToPng(
           const textAlign = (el.align ?? "center") as "center" | "left" | "right";
           const transform = ANCHOR_TRANSFORM[(el as TextElement & { verticalAnchor?: string }).verticalAnchor ?? "center"];
 
+          // Resolve per-element spacing values (with defaults)
+          const elTyped = el as TextElement & { lineHeight?: number; letterSpacing?: number; paddingX?: number };
+          const elLineHeight = elTyped.lineHeight ?? 1.3;
+          // letterSpacing stored in em – convert to px at Satori font size
+          const elFontSize = Math.round((el.fontSize ?? 16) * DESIGN_SCALE);
+          const elLetterSpacing = elTyped.letterSpacing != null
+            ? elTyped.letterSpacing * elFontSize
+            : 0;
+          // paddingX stored as % of design width – convert to Satori px
+          const elPaddingPx = elTyped.paddingX != null
+            ? Math.round((elTyped.paddingX / 100) * SATORI_SLIDE_WIDTH)
+            : SATORI_PADDING;
+
           return (
             <div
               key={el.id}
@@ -248,25 +263,26 @@ export async function renderSlideToPng(
                 display: "flex",
                 flexDirection: "column",
                 alignItems: alignMap[textAlign] ?? "center",
-                  padding: `0 ${SATORI_PADDING}px`,
+                paddingLeft: elPaddingPx,
+                paddingRight: elPaddingPx,
               }}
             >
               {el.text
-                .split("\u005C\u006E").join("\u000A")   // literal \n → newline
-                .split("\u002F\u006E").join("\u000A")   // literal /n → newline
-                .split("\u000D\u000A").join("\u000A")   // CRLF → LF
-                .split("\u000D").join("\u000A")          // CR → LF
+                .split("\u005C\u006E").join("\u000A")
+                .split("\u002F\u006E").join("\u000A")
+                .split("\u000D\u000A").join("\u000A")
+                .split("\u000D").join("\u000A")
                 .split("\u000A").map((line: string, li: number) => (
                 <span
                   key={li}
                   style={{
-                    // Scale font size from design-width (380px) to Satori canvas (1080px)
-                    fontSize: Math.round((el.fontSize ?? 16) * DESIGN_SCALE),
+                    fontSize: elFontSize,
                     fontWeight: fontWeightNum(el.fontWeight),
                     fontFamily: el.fontFamily ?? "Inter",
                     color: el.color ?? "#ffffff",
                     textAlign,
-                    lineHeight: 1.3,
+                    lineHeight: elLineHeight,
+                    letterSpacing: elLetterSpacing !== 0 ? elLetterSpacing : undefined,
                     wordBreak: "break-word",
                     maxWidth: "100%",
                     display: "block",

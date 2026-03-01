@@ -140,16 +140,20 @@ function ElementRenderer({
   };
   const transform = anchorTransform[element.verticalAnchor ?? "center"];
 
+  const paddingXpct = element.paddingX ?? 6;
+
   return (
     <div
       className={cn(
-        "absolute w-full px-6 transition-all",
+        "absolute w-full transition-all",
         onSelect && "cursor-pointer",
         selected && "outline outline-1 outline-[#1d4ed8]/60 outline-offset-1 rounded"
       )}
       style={{
         top: `${element.y}%`,
         left: 0,
+        paddingLeft: `${paddingXpct}%`,
+        paddingRight: `${paddingXpct}%`,
         transform,
       }}
       onClick={(e) => {
@@ -159,7 +163,6 @@ function ElementRenderer({
     >
       <p
         className={cn(
-          "leading-tight",
           FONT_WEIGHTS[element.fontWeight],
           ALIGN_MAP[element.align]
         )}
@@ -169,6 +172,8 @@ function ElementRenderer({
           wordBreak: "break-word",
           whiteSpace: "pre-wrap",
           fontFamily: element.fontFamily ?? "Inter, sans-serif",
+          lineHeight: element.lineHeight ?? 1.3,
+          letterSpacing: element.letterSpacing != null ? `${element.letterSpacing}em` : undefined,
         }}
       >
         {element.text

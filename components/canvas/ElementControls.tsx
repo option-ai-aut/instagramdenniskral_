@@ -340,6 +340,50 @@ export function ElementControls() {
               />
             </div>
 
+            {/* Line height */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] text-white/30">Zeilenabstand</p>
+                <span className="text-[10px] text-white/50">{(element.lineHeight ?? 1.3).toFixed(1)}×</span>
+              </div>
+              <RangeSlider
+                min={80}
+                max={300}
+                value={Math.round((element.lineHeight ?? 1.3) * 100)}
+                onCommit={(v) => update({ lineHeight: v / 100 })}
+              />
+            </div>
+
+            {/* Letter spacing */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] text-white/30">Buchstabenabstand</p>
+                <span className="text-[10px] text-white/50">
+                  {((element.letterSpacing ?? 0) >= 0 ? "+" : "")}{(element.letterSpacing ?? 0).toFixed(2)}em
+                </span>
+              </div>
+              <RangeSlider
+                min={-10}
+                max={50}
+                value={Math.round((element.letterSpacing ?? 0) * 100)}
+                onCommit={(v) => update({ letterSpacing: v / 100 })}
+              />
+            </div>
+
+            {/* Padding X (edge margin) */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] text-white/30">Randabstand</p>
+                <span className="text-[10px] text-white/50">{element.paddingX ?? 6}%</span>
+              </div>
+              <RangeSlider
+                min={0}
+                max={40}
+                value={element.paddingX ?? 6}
+                onCommit={(v) => update({ paddingX: v })}
+              />
+            </div>
+
             {/* Font weight */}
             <div>
               <p className="text-[10px] text-white/30 mb-2">Stärke</p>
