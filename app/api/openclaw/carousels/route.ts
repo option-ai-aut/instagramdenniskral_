@@ -317,29 +317,22 @@ export async function POST(req: NextRequest) {
     try {
       const db = getDb();
       const reqId = nanoid();
-      // Resolve human-readable template title
-      let tTitle: string | null = null;
-      if (typeof title === "string" && title.trim()) {
-        tTitle = title.trim();
-      } else if (!getBuiltinTemplate(templateId)) {
-        // Try to get title from DB (carousel was already loaded above, but we don't have it here)
-        // Just skip – not critical
-      }
-      await db.from("OpenlawRequest").insert({
+      const { error: logError } = await db.from("OpenlawRequest").insert({
         id: reqId,
-        templateId,
-        templateTitle: tTitle,
+        templateid: templateId,
+        templatetitle: safeTitle,
         title: safeTitle,
-        slideCount: finalSlides.length,
-        requestBody: {
+        slidecount: finalSlides.length,
+        requestbody: {
           tag: tag ?? null,
           body: bodyText ?? null,
           slides: slideOverrides ?? null,
           textOverrides: textOverrides.length > 0 ? textOverrides : null,
           grainIntensity,
         },
-        userId: SYSTEM_USER_ID,
+        userid: SYSTEM_USER_ID,
       });
+      if (logError) console.warn("[openclaw] Log insert error:", logError.message);
     } catch (logErr) {
       console.warn("[openclaw] Failed to log request:", logErr);
     }

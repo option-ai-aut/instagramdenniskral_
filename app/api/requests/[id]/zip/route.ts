@@ -49,7 +49,7 @@ export async function GET(
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
-    const body = record.requestBody as {
+    const body = (record.requestbody ?? record.requestBody) as {
       tag?: string | null;
       body?: string | null;
       slides?: Array<{ header?: string; subtitle?: string }> | null;
@@ -57,11 +57,13 @@ export async function GET(
       grainIntensity?: number;
     };
 
+    const tmplId = (record.templateid ?? record.templateId) as string;
+
     // Load template
     const { data: carousel } = await db
       .from("Carousel")
       .select("slidesJson")
-      .eq("id", record.templateId)
+      .eq("id", tmplId)
       .eq("userId", SYSTEM_USER_ID)
       .single();
 
@@ -123,7 +125,7 @@ export async function GET(
     };
 
     const zip = new JSZip();
-    const safeTitle = (record.title as string) || "carousel";
+    const safeTitle = ((record.title as string) ?? (record.templatetitle as string) ?? "carousel");
     for (let i = 0; i < slides.length; i++) {
       const buf = await renderSlideToPng(slides[i], grain.intensity, grain.size, grain.density, grain.sharpness);
       zip.file(`${safeTitle}-slide-${i + 1}.png`, buf);

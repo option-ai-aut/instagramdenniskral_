@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     const { data, error, count } = await db
       .from("OpenlawRequest")
       .select("*", { count: "exact" })
-      .order("createdAt", { ascending: false })
+      .order("createdat", { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error) throw new Error(error.message);

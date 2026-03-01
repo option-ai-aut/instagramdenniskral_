@@ -18,13 +18,14 @@ type RequestBody = {
 
 type OpenlawRequest = {
   id: string;
-  templateId: string;
-  templateTitle: string | null;
+  // Supabase stores column names as lowercase
+  templateid: string;
+  templatetitle: string | null;
   title: string | null;
-  slideCount: number;
-  requestBody: RequestBody | null;
-  userId: string;
-  createdAt: string;
+  slidecount: number;
+  requestbody: RequestBody | null;
+  userid: string;
+  createdat: string;
 };
 
 function formatDate(iso: string) {
@@ -72,7 +73,7 @@ function RequestCard({ req }: { req: OpenlawRequest }) {
     }
   };
 
-  const body = req.requestBody;
+  const body = req.requestbody;
   const hasNewFormat = body && (body.tag !== null && body.tag !== undefined || body.body !== null && body.body !== undefined || body.slides);
   const hasLegacy = body?.textOverrides && body.textOverrides.length > 0;
 
@@ -95,20 +96,20 @@ function RequestCard({ req }: { req: OpenlawRequest }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[13px] font-semibold text-white/90 truncate">
-              {req.title ?? "carousel"}
+              {req.title ?? req.templatetitle ?? "carousel"}
             </span>
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#1d4ed8]/15 text-[#60a5fa]/80 border border-[#1d4ed8]/20 flex-shrink-0">
-              {req.slideCount} Slides
+              {req.slidecount} Slides
             </span>
           </div>
           <div className="flex items-center gap-3 mt-0.5">
             <span className="text-[11px] text-white/35 flex items-center gap-1">
               <LayoutTemplateIcon size={10} />
-              {req.templateTitle ?? req.templateId.slice(0, 12) + "…"}
+              {req.templatetitle ?? req.templateid.slice(0, 12) + "…"}
             </span>
-            <span className="text-[11px] text-white/25 flex items-center gap-1" title={formatDate(req.createdAt)}>
+            <span className="text-[11px] text-white/25 flex items-center gap-1" title={formatDate(req.createdat)}>
               <CalendarIcon size={10} />
-              {timeAgo(req.createdAt)}
+              {timeAgo(req.createdat)}
             </span>
           </div>
         </div>
@@ -217,7 +218,7 @@ function RequestCard({ req }: { req: OpenlawRequest }) {
           {/* Template ID */}
           <div className="flex items-center gap-1.5 pt-1">
             <span className="text-[9px] text-white/20 uppercase tracking-wider">Template ID</span>
-            <code className="text-[10px] text-white/30 font-mono">{req.templateId}</code>
+            <code className="text-[10px] text-white/30 font-mono">{req.templateid}</code>
           </div>
         </div>
       )}
