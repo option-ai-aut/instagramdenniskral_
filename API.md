@@ -511,42 +511,48 @@ Listet alle gespeicherten Karussells (ohne builtin).
 
 ### `POST /api/openclaw/carousels` ⭐ Haupt-Endpunkt
 
-Generiert alle Slides als ZIP – **kein DB-Eintrag** wird erstellt.
+Generiert alle Slides als ZIP – **kein DB-Eintrag** wird erstellt. Gibt direkt `application/zip` zurück.
 
-**Request:**
+#### Neues Format (empfohlen)
+
+`tag` und `body` sind **global** – werden auf **alle Slides** angewendet.  
+`slides[]` gibt `header` und `subtitle` **pro Slide** an.
+
 ```json
 {
-  "templateId": "progress",
-  "title": "Mein-Post",
+  "templateId": "abc123",
+  "title": "Update-KW-9",
   "grainIntensity": 20,
-  "textOverrides": [
-    { "slideIndex": 0, "elementType": "tag",      "text": "START NOW" },
-    { "slideIndex": 0, "elementType": "header",   "text": "Bereit für\ndeinen Agent?" },
-    { "slideIndex": 0, "elementType": "subtitle", "text": "Automatisiere dein Business." },
-    { "slideIndex": 0, "elementType": "body",     "text": "@denniskral_" }
+  "tag": "BUILD IN PUBLIC",
+  "body": "@denniskral_",
+  "slides": [
+    { "header": "Slide 1 Titel", "subtitle": "Erklärung\nZweite Zeile" },
+    { "header": "Slide 2 Titel", "subtitle": "Andere Erklärung" },
+    { "header": "Slide 3 Titel" }
   ]
 }
 ```
 
-| Feld | Typ | Pflicht | Default |
-|------|-----|---------|---------|
-| `templateId` | string | ✅ | – |
-| `title` | string | ❌ | `"carousel"` (ZIP-Dateiname) |
-| `grainIntensity` | number 0–100 | ❌ | `0` |
-| `textOverrides` | Array | ❌ | `[]` |
-| `textOverrides[].slideIndex` | number | ✅ | – |
-| `textOverrides[].elementType` | string | ✅ | `"header"` \| `"subtitle"` \| `"body"` \| `"tag"` |
-| `textOverrides[].text` | string | ✅ | max 500 Zeichen |
+| Feld | Typ | Pflicht | Beschreibung |
+|------|-----|---------|-------------|
+| `templateId` | string | ✅ | Builtin-ID (`progress`/`tip`/`luxury`) oder gespeicherte Karussell-ID |
+| `title` | string | ❌ | ZIP-Dateiname (default: `"carousel"`) |
+| `grainIntensity` | number 0–100 | ❌ | Überschreibt Template-Grain-Standard |
+| `tag` | string | ❌ | **Global** – gilt für alle Slides. Max 500 Zeichen. |
+| `body` | string | ❌ | **Global** – gilt für alle Slides (z.B. `@handle`). Max 500 Zeichen. |
+| `slides` | Array | ❌ | Pro-Slide-Texte: `{ header?, subtitle? }` |
+| `slides[i].header` | string | ❌ | Hauptüberschrift für Slide i. Unterstützt `\n`. |
+| `slides[i].subtitle` | string | ❌ | Untertitel für Slide i. Unterstützt `\n`. |
+| `textOverrides` | Array | ❌ | **Legacy** – `{ slideIndex, elementType, text }`. Wird durch neues Format überschrieben. |
 
-**Zeilenumbrüche im Text:**  
-Sende `\n` (JSON: `"\\n"`) oder einen echten Zeilenumbruch – beides wird korrekt verarbeitet. Auch `/n` (Schrägstrich+n) wird akzeptiert.
+**Zeilenumbrüche:** `\n` (JSON: `"\\n"`) oder echter Zeilenumbruch – beides korrekt. Auch `/n` akzeptiert.
 
-**Response 200:** `application/zip`  
-Header: `X-Slide-Count: 5`, `Content-Disposition: attachment; filename="mein-post.zip"`
+**Response 200:** `application/zip` (direkt binär – kein JSON)  
+Headers: `X-Slide-Count: 3`, `Content-Disposition: attachment; filename="update-kw-9.zip"`
 
-ZIP-Inhalt: `mein-post-slide-1.png`, `mein-post-slide-2.png`, …
+ZIP-Inhalt: `update-kw-9-slide-1.png`, `update-kw-9-slide-2.png`, …
 
-**Gesperrte Elemente:** Elemente mit `locked: true` können nicht überschrieben werden – `textOverrides` für diese Elemente werden stillschweigend ignoriert.
+**Gesperrte Elemente:** Elemente mit `locked: true` können nicht überschrieben werden und werden stillschweigend ignoriert.
 
 ---
 

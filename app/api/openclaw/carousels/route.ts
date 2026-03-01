@@ -33,6 +33,7 @@ import { parseSlidesPayload } from "@/lib/slides-payload";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+export const dynamic = "force-dynamic"; // always read fresh from DB, never cached
 
 /**
  * Normalise any newline variant Openclaw might send.
@@ -117,7 +118,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       templates: (carousels ?? []).map((c) => {
-        const slides = Array.isArray(c.slidesJson) ? c.slidesJson : [];
+        const { slides } = parseSlidesPayload(c.slidesJson);
         return {
           id: c.id,
           title: c.title,
@@ -134,6 +135,16 @@ export async function GET(req: NextRequest) {
 }
 
 // ── POST: generate ZIP from template (no database write) ───────────────────────
+//
+// New simplified format (recommended):
+//   tag      – ONE string, applied to all slides (tag elements)
+//   body     – ONE string, applied to all slides (body elements)
+//   slides   – Array of { header?, subtitle? } per slide index
+//
+// Legacy format still works:
+//   textOverrides – Array of { slideIndex, elementType, text }
+//
+// Both formats can be combined; new format takes precedence per field.
 
 export async function POST(req: NextRequest) {
   const authError = validateOpenclaw(req);
@@ -141,11 +152,24 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { templateId, title, textOverrides = [], grainIntensity = 0 } = body as {
+    const {
+      templateId,
+      title,
+      grainIntensity = 0,
+      // ── new simplified format ──────────────────────────────────────────────
+      tag,                        // global tag text for ALL slides
+      body: bodyText,             // global body text for ALL slides
+      slides: slideOverrides,     // per-slide { header?, subtitle? }
+      // ── legacy format (kept for backward compat) ─────────────────────────
+      textOverrides = [],
+    } = body as {
       templateId: string;
       title?: string;
-      textOverrides?: Array<{ slideIndex: number; elementType: string; text: string }>;
       grainIntensity?: number;
+      tag?: string;
+      body?: string;
+      slides?: Array<{ header?: string; subtitle?: string }>;
+      textOverrides?: Array<{ slideIndex: number; elementType: string; text: string }>;
     };
 
     if (!templateId) {
@@ -155,21 +179,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── 1. Load template ───────────────────────────────────────────────────────
+    // ── 1. Load template (always fresh – no caching) ───────────────────────
     let slides: Slide[] | null = getBuiltinTemplate(templateId);
-    // savedGrain: the grain settings that were designed into the template
     let savedGrain = { intensity: 0, size: 40, density: 50, sharpness: 50 };
 
     if (!slides) {
       const db = getDb();
-      const { data: carousel } = await db
+      const { data: carousel, error: dbErr } = await db
         .from("Carousel")
         .select("slidesJson, title")
         .eq("id", templateId)
         .eq("userId", SYSTEM_USER_ID)
         .single();
 
-      if (!carousel) {
+      if (dbErr || !carousel) {
         return NextResponse.json(
           { error: `Template '${templateId}' not found. Use GET /api/openclaw/templates to list available templates.` },
           { status: 404 }
@@ -180,11 +203,10 @@ export async function POST(req: NextRequest) {
       savedGrain = parsed.grain;
     }
 
-    // Use saved grain from template as defaults; grainIntensity request param can override intensity only
     const clampG = (v: unknown, def: number) =>
       typeof v === "number" ? Math.max(0, Math.min(100, v)) : def;
     const grain = {
-      intensity: grainIntensity !== undefined ? clampG(grainIntensity, savedGrain.intensity) : savedGrain.intensity,
+      intensity: clampG(grainIntensity, savedGrain.intensity),
       size:      savedGrain.size,
       density:   savedGrain.density,
       sharpness: savedGrain.sharpness,
@@ -194,26 +216,49 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Template has no slides." }, { status: 400 });
     }
 
-    // ── 2. Apply text overrides (immutable, locked elements are skipped) ───────
-    const overrides = Array.isArray(textOverrides) ? textOverrides : [];
-    if (overrides.length > 0) {
-      slides = slides.map((slide, idx) => {
-        const slideOverrides = overrides.filter(
-          (o) => typeof o.slideIndex === "number" && o.slideIndex === idx &&
-                 o.elementType && typeof o.text === "string"
-        );
-        if (slideOverrides.length === 0) return slide;
-        return {
-          ...slide,
-          elements: (slide.elements as TextElement[]).map((el) => {
-            const override = slideOverrides.find((o) => o.elementType === el.type);
-            return (override && !el.locked)
-              ? { ...el, text: normalizeNewlines(override.text).slice(0, 500) }
-              : el;
-          }),
-        };
-      });
+    // ── 2. Build merged override map ────────────────────────────────────────
+    //  Priority: new format (tag/body/slides) > legacy textOverrides
+    //  Locked elements are always skipped.
+
+    // Step A: build legacy override lookup: [slideIdx][elementType] = text
+    const legacyMap: Record<number, Record<string, string>> = {};
+    for (const o of (Array.isArray(textOverrides) ? textOverrides : [])) {
+      if (typeof o.slideIndex !== "number" || !o.elementType || typeof o.text !== "string") continue;
+      if (!legacyMap[o.slideIndex]) legacyMap[o.slideIndex] = {};
+      legacyMap[o.slideIndex][o.elementType] = o.text;
     }
+
+    // Step B: apply all overrides to slides
+    slides = slides.map((slide, idx) => {
+      const legacySlide = legacyMap[idx] ?? {};
+
+      // Per-slide from new slides[] format
+      const perSlide = Array.isArray(slideOverrides) ? (slideOverrides[idx] ?? {}) : {};
+
+      // Resolved text for each element type (new format wins)
+      const resolved: Record<string, string | undefined> = {
+        tag:      typeof tag      === "string" ? tag      : undefined,  // global
+        body:     typeof bodyText === "string" ? bodyText : undefined,  // global
+        header:   typeof perSlide.header   === "string" ? perSlide.header   : legacySlide.header,
+        subtitle: typeof perSlide.subtitle === "string" ? perSlide.subtitle : legacySlide.subtitle,
+        // legacy-only: allow body/tag per-slide via textOverrides when NOT given globally
+        ...( tag      === undefined && legacySlide.tag      ? { tag:  legacySlide.tag      } : {} ),
+        ...( bodyText === undefined && legacySlide.body     ? { body: legacySlide.body     } : {} ),
+      };
+
+      const hasAnyOverride = Object.values(resolved).some((v) => v !== undefined);
+      if (!hasAnyOverride) return slide;
+
+      return {
+        ...slide,
+        elements: (slide.elements as TextElement[]).map((el) => {
+          const text = resolved[el.type];
+          return (text !== undefined && !el.locked)
+            ? { ...el, text: normalizeNewlines(text).slice(0, 500) }
+            : el;
+        }),
+      };
+    });
 
     // Assign fresh IDs so the template objects are not mutated
     const finalSlides: Slide[] = slides.map((sl) => ({
@@ -222,7 +267,7 @@ export async function POST(req: NextRequest) {
       elements: sl.elements.map((el) => ({ ...el, id: nanoid() })),
     }));
 
-    // ── 3. Render all slides to PNG via Satori ─────────────────────────────────
+    // ── 3. Render all slides to PNG via Satori ─────────────────────────────
     const zip = new JSZip();
     const safeTitle = (typeof title === "string" && title.trim()
       ? title.trim()
@@ -236,7 +281,7 @@ export async function POST(req: NextRequest) {
 
     const zipUint8 = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
 
-    // ── 4. Return ZIP directly (no DB save) ───────────────────────────────────
+    // ── 4. Return ZIP directly (no DB save) ───────────────────────────────
     return new Response(zipUint8.buffer as ArrayBuffer, {
       status: 200,
       headers: {

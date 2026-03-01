@@ -266,65 +266,78 @@ curl -H "Authorization: Bearer YOUR_KEY" \\
         </Section>
 
         {/* Create Carousel */}
-        <Section id="create" title="Karussell erstellen" icon={ZapIcon}>
+        <Section id="create" title="Karussell generieren → ZIP" icon={ZapIcon}>
           <div className="flex items-center gap-2">
             <MethodBadge method="POST" />
             <code className="text-[13px] font-mono text-white/70">/api/openclaw/carousels</code>
           </div>
           <p className="text-[13px] text-white/50">
-            Erstellt ein neues Karussell basierend auf einem Template (builtin oder gespeichert) und ersetzt die Texte mit den angegebenen Werten.
-            Layout, Positionen, Farben und Schriftgrößen bleiben unverändert – nur der Text-Inhalt wird überschrieben.
+            Rendert alle Slides eines Templates mit den angegebenen Texten und gibt sie <strong className="text-white/70">direkt als ZIP</strong> zurück.
+            Kein Datenbank-Eintrag wird erstellt. Layout, Positionen, Schriftarten und Schriftgrößen bleiben unverändert.
           </p>
 
+          <div className="rounded-xl border border-[#34d399]/20 bg-[#34d399]/5 px-4 py-3 space-y-2">
+            <p className="text-[11px] font-semibold text-[#34d399]">✅ Neues, empfohlenes Format</p>
+            <p className="text-[11px] text-white/50 leading-relaxed">
+              <code className="text-[#60a5fa]">tag</code> und <code className="text-[#60a5fa]">body</code> sind <strong className="text-white/60">global</strong> – werden auf alle Slides angewendet.{" "}
+              <code className="text-[#60a5fa]">slides[]</code> gibt <code className="text-[#60a5fa]">header</code> und <code className="text-[#60a5fa]">subtitle</code> pro Slide an.
+              Das alte <code className="text-white/40">textOverrides</code>-Format bleibt für Rückwärtskompatibilität erhalten.
+            </p>
+          </div>
+
           <ParamTable params={[
-            { name: "templateId",    type: "string",  req: true,  desc: "ID des Templates: 'progress', 'tip', 'luxury' oder gespeicherte Karussell-ID" },
-            { name: "title",         type: "string",  req: false, desc: "Titel des neuen Karussells (max 200 Zeichen). Default: 'Openclaw Carousel'" },
-            { name: "textOverrides", type: "array",   req: false, desc: "Liste von Text-Ersetzungen. Ohne textOverrides wird der Default-Text verwendet." },
-            { name: "└ slideIndex",  type: "number",  req: true,  desc: "0-basierter Slide-Index (0 = erster Slide)" },
-            { name: "└ elementType", type: "string",  req: true,  desc: "Typ des Elements: 'header' | 'subtitle' | 'body' | 'tag'" },
-            { name: "└ text",        type: "string",  req: true,  desc: "Neuer Textinhalt. Unterstützt \\n für Zeilenumbrüche. Max 500 Zeichen." },
+            { name: "templateId",      type: "string",  req: true,  desc: "ID des Templates: 'progress', 'tip', 'luxury' oder gespeicherte Karussell-ID" },
+            { name: "title",           type: "string",  req: false, desc: "ZIP-Dateiname (max 200 Zeichen). Default: 'carousel'" },
+            { name: "grainIntensity",  type: "number",  req: false, desc: "Grain-Textur 0–100 (überschreibt Template-Standard)" },
+            { name: "tag",             type: "string",  req: false, desc: "Globaler Tag-Text – gilt für ALLE Slides. Max 500 Zeichen." },
+            { name: "body",            type: "string",  req: false, desc: "Globaler Body-Text – gilt für ALLE Slides (z.B. @handle). Max 500 Zeichen." },
+            { name: "slides",          type: "array",   req: false, desc: "Pro-Slide-Texte für header und subtitle. Index 0 = erster Slide." },
+            { name: "└ [i].header",    type: "string",  req: false, desc: "Hauptüberschrift für Slide i. Unterstützt \\n für Zeilenumbrüche." },
+            { name: "└ [i].subtitle",  type: "string",  req: false, desc: "Untertitel für Slide i. Unterstützt \\n für Zeilenumbrüche." },
+            { name: "textOverrides",   type: "array",   req: false, desc: "Legacy-Format: { slideIndex, elementType, text }. Wird durch neues Format überschrieben." },
           ]} />
 
-          <CodeBlock lang="bash" code={`curl -X POST ${BASE_URL}/api/openclaw/carousels \\
-  -H "Authorization: Bearer YOUR_KEY" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "templateId": "progress",
-    "title": "Update KW 9 – Launch Day",
-    "textOverrides": [
-      { "slideIndex": 0, "elementType": "tag",      "text": "LAUNCH DAY" },
-      { "slideIndex": 0, "elementType": "header",   "text": "Insta Builder ist live" },
-      { "slideIndex": 0, "elementType": "subtitle", "text": "Nach 3 Wochen Entwicklung\\nheute endlich deployed." }
-    ]
-  }'`} />
-
-          <CodeBlock lang="json" code={`{
-  "carouselId": "abc123def456",
-  "title": "Update KW 9 – Launch Day",
-  "slideCount": 1,
-  "slideImageUrls": [
-    "${BASE_URL}/api/openclaw/carousels/abc123/slides/0/image.png"
-  ],
-  "viewUrl": "${BASE_URL}/canvas?load=abc123",
+          <CodeBlock lang="json" code={`// Neues Format (empfohlen)
+{
+  "templateId": "abc123",
+  "title": "Update KW 9",
+  "tag": "LAUNCH DAY",
+  "body": "@denniskral_",
   "slides": [
-    {
-      "slideIndex": 0,
-      "downloadUrl": "${BASE_URL}/api/openclaw/carousels/abc123/slides/0/image.png",
-      "elements": [
-        { "type": "tag",      "text": "LAUNCH DAY" },
-        { "type": "header",   "text": "Insta Builder ist live" },
-        { "type": "subtitle", "text": "Nach 3 Wochen Entwicklung\\nheute endlich deployed." },
-        { "type": "body",     "text": "@denniskral_" }
-      ]
-    }
+    { "header": "Insta Builder ist live",   "subtitle": "Die App für mein Insta-Workflow." },
+    { "header": "Was ich gebaut habe",       "subtitle": "Image Editor + Canvas + Openclaw\\nAlles in einer App." },
+    { "header": "Was als nächstes kommt",    "subtitle": "KI-Training auf eigenen Prompts." }
   ]
 }`} />
 
+          <CodeBlock lang="bash" code={`# Request → gibt direkt ZIP-Binary zurück
+curl -X POST ${BASE_URL}/api/openclaw/carousels \\
+  -H "Authorization: Bearer YOUR_KEY" \\
+  -H "Content-Type: application/json" \\
+  -o slides.zip \\
+  -d '{
+    "templateId": "abc123",
+    "title": "Update-KW-9",
+    "tag": "LAUNCH DAY",
+    "body": "@denniskral_",
+    "slides": [
+      { "header": "Insta Builder ist live", "subtitle": "3 Wochen Entwicklung.\\nHeute deployed." },
+      { "header": "Feature #1: Image Editor" }
+    ]
+  }'`} />
+
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold text-white/40">Response Headers:</p>
+            <CodeBlock lang="http" code={`Content-Type: application/zip
+Content-Disposition: attachment; filename="update-kw-9.zip"
+X-Slide-Count: 3`} />
+          </div>
+
           <div className="rounded-xl border border-[#60a5fa]/20 bg-[#1d4ed8]/5 px-4 py-3 space-y-1">
-            <p className="text-[11px] font-semibold text-[#60a5fa]">💡 Tipp: Zeilenumbrüche</p>
+            <p className="text-[11px] font-semibold text-[#60a5fa]">Zeilenumbrüche im Text</p>
             <p className="text-[11px] text-white/40">
-              Nutze <code className="text-white/60">\n</code> im JSON-String für Zeilenumbrüche im Text.
-              Jede neue Zeile wird im Slide und in der PNG-Datei korrekt gerendert.
+              Nutze <code className="text-white/60">\n</code> (JSON: <code className="text-white/60">&quot;\\n&quot;</code>) für Zeilenumbrüche.
+              Auch <code className="text-white/40">/n</code> wird akzeptiert.
             </p>
           </div>
         </Section>
@@ -406,11 +419,9 @@ curl -o slide-1.png \\
           </p>
           <ol className="space-y-3">
             {[
-              { n: "1", title: "Templates laden", code: `GET /api/openclaw/templates` },
-              { n: "2", title: "Template-Struktur verstehen (Elemente, Positionen, locked-Status)", code: `GET /api/openclaw/templates/progress` },
-              { n: "3", title: "Karussell erstellen & Texte befüllen", code: `POST /api/openclaw/carousels\n{ templateId, title, textOverrides }` },
-              { n: "4", title: "Alle Slides als ZIP herunterladen", code: `GET /api/openclaw/carousels/:carouselId/slides/zip` },
-              { n: "5", title: "(Optional) Im Editor öffnen oder einzelne PNGs abrufen", code: `viewUrl: /canvas?load=:id\n/api/openclaw/carousels/:id/slides/0/image.png` },
+              { n: "1", title: "Verfügbare Templates laden", code: `GET /api/openclaw/templates` },
+              { n: "2", title: "Template-Struktur abfragen (Elemente, locked-Status, Slide-Anzahl)", code: `GET /api/openclaw/templates/:id` },
+              { n: "3", title: "Slides generieren → direkt als ZIP (1 Request, kein DB-Eintrag)", code: `POST /api/openclaw/carousels\n{ templateId, tag, body, slides:[{header,subtitle},...] }` },
             ].map((step) => (
               <li key={step.n} className="flex gap-3">
                 <span className="w-6 h-6 rounded-full bg-[#1d4ed8]/20 border border-[#1d4ed8]/30 flex items-center justify-center text-[11px] text-[#60a5fa] font-bold flex-shrink-0 mt-0.5">
@@ -424,23 +435,34 @@ curl -o slide-1.png \\
             ))}
           </ol>
 
-          <CodeBlock lang="bash" code={`# Vollständiges Beispiel in 2 Requests:
+          <CodeBlock lang="bash" code={`# Vollständig in 1 Request: Template befüllen + ZIP erhalten
 
-# 1. Karussell erstellen
-RESP=$(curl -s -X POST ${BASE_URL}/api/openclaw/carousels \\
+curl -X POST ${BASE_URL}/api/openclaw/carousels \\
   -H "Authorization: Bearer YOUR_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{"templateId":"progress","title":"KW 9 Update","textOverrides":[
-    {"slideIndex":0,"elementType":"header","text":"Insta Builder ist live"},
-    {"slideIndex":0,"elementType":"subtitle","text":"3 Wochen Entwicklung\\nheute deployed."}
-  ]}')
-
-CAROUSEL_ID=$(echo $RESP | python3 -c "import sys,json; print(json.load(sys.stdin)['carouselId'])")
-
-# 2. Alle Slides als ZIP herunterladen
-curl -H "Authorization: Bearer YOUR_KEY" \\
   -o carousel.zip \\
-  "${BASE_URL}/api/openclaw/carousels/$CAROUSEL_ID/slides/zip"`} />
+  -d '{
+    "templateId": "YOUR_TEMPLATE_ID",
+    "title": "KW-9-Update",
+    "tag": "BUILD IN PUBLIC",
+    "body": "@denniskral_",
+    "slides": [
+      {
+        "header": "Insta Builder ist live",
+        "subtitle": "3 Wochen Entwicklung.\\nHeute deployed."
+      },
+      {
+        "header": "Was ich gebaut habe",
+        "subtitle": "Image Editor · Canvas · Openclaw-API"
+      },
+      {
+        "header": "Was als nächstes kommt",
+        "subtitle": "KI-Training auf eigenen Prompts."
+      }
+    ]
+  }'
+
+# → carousel.zip enthält slide-1.png, slide-2.png, slide-3.png (1080px, kein Upload nötig)`} />
         </Section>
 
         {/* Locked Elements */}
@@ -474,18 +496,22 @@ curl -H "Authorization: Bearer YOUR_KEY" \\
         <Section id="element-types" title="Textelement-Typen" icon={LayoutIcon}>
           <p className="text-[13px] text-white/50">
             Jedes Template besteht aus maximal 4 Textelement-Typen pro Slide.
-            Beim POST müssen Typ und slideIndex exakt matchen.
           </p>
           <div className="grid grid-cols-1 gap-2">
             {[
-              { type: "tag",      desc: "Kleines Label ganz oben (z.B. 'BUILD IN PUBLIC', 'PRO TIPP'). Meist in Farbe.", example: "LAUNCH DAY" },
-              { type: "header",   desc: "Hauptüberschrift. Größte Schrift, fett. Kernbotschaft in 3-8 Wörtern.", example: "Insta Builder ist live" },
-              { type: "subtitle", desc: "Erklärung oder Metrik unter dem Header. Unterstützt \\n für Absätze.", example: "3 Wochen Entwicklung\nheute deployed." },
-              { type: "body",     desc: "Kleiner Text ganz unten, meist der @handle. Selten ändern.", example: "@denniskral_" },
+              { type: "tag",      scope: "global",    scopeColor: "#34d399", desc: "Kleines Label ganz oben (z.B. 'BUILD IN PUBLIC'). Gilt für alle Slides – einmal setzen, überall gleich.", example: "LAUNCH DAY" },
+              { type: "header",   scope: "pro slide",  scopeColor: "#60a5fa", desc: "Hauptüberschrift. Größte Schrift, fett. Kernbotschaft in 3–8 Wörtern. Jeder Slide hat seinen eigenen header.", example: "Insta Builder ist live" },
+              { type: "subtitle", scope: "pro slide",  scopeColor: "#60a5fa", desc: "Erklärung oder Metrik unter dem Header. Jeder Slide hat seinen eigenen subtitle. Unterstützt \\n.", example: "3 Wochen Entwicklung\nheute deployed." },
+              { type: "body",     scope: "global",    scopeColor: "#34d399", desc: "Kleiner Text ganz unten, meist der @handle. Gilt für alle Slides – einmal setzen, überall gleich.", example: "@denniskral_" },
             ].map((el) => (
               <div key={el.type} className="flex items-start gap-3 px-3 py-2.5 rounded-xl border border-white/[0.06]" style={{ background: "rgba(255,255,255,0.02)" }}>
                 <code className="text-[11px] font-mono text-[#60a5fa] w-16 flex-shrink-0 mt-0.5">{el.type}</code>
-                <div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: `${el.scopeColor}15`, color: el.scopeColor }}>
+                      {el.scope}
+                    </span>
+                  </div>
                   <p className="text-[11px] text-white/50">{el.desc}</p>
                   <p className="text-[10px] text-white/25 mt-0.5">Beispiel: <span className="text-white/40 font-mono">&quot;{el.example}&quot;</span></p>
                 </div>
