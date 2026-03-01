@@ -49,24 +49,35 @@ function RangeSlider({
   );
 }
 
-/* ─── GrainSlider ─────────────────────────────────────────── */
-function GrainSlider() {
-  const grainIntensity = useCanvasStore((s) => s.grainIntensity);
-  const setGrainIntensity = useCanvasStore((s) => s.setGrainIntensity);
-  const [local, setLocal] = useState(grainIntensity);
-  useEffect(() => setLocal(grainIntensity), [grainIntensity]);
+/* ─── GrainControls ───────────────────────────────────────── */
+function GrainControl({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  const [local, setLocal] = useState(value);
+  useEffect(() => setLocal(value), [value]);
   return (
-    <div>
-      <div className="flex items-center justify-between mb-1">
-        <p className="text-[10px] text-white/30">Grain (alle Slides)</p>
-        <span className="text-[10px] text-white/50">{local}%</span>
-      </div>
+    <div className="flex items-center gap-2">
+      <p className="text-[10px] text-white/40 w-[68px] flex-shrink-0">{label}</p>
       <input
         type="range" min={0} max={100} value={local}
         onChange={(e) => setLocal(Number(e.target.value))}
-        onPointerUp={(e) => setGrainIntensity(Number((e.target as HTMLInputElement).value))}
-        className="w-full accent-[#1d4ed8]"
+        onPointerUp={(e) => onChange(Number((e.target as HTMLInputElement).value))}
+        className="flex-1 accent-[#1d4ed8]"
       />
+      <span className="text-[10px] text-white/40 w-7 text-right tabular-nums flex-shrink-0">{local}%</span>
+    </div>
+  );
+}
+
+function GrainSlider() {
+  const { grainIntensity, grainSize, grainDensity, grainSharpness,
+          setGrainIntensity, setGrainSize, setGrainDensity, setGrainSharpness } = useCanvasStore();
+
+  return (
+    <div className="space-y-2.5">
+      <p className="text-[10px] font-medium text-white/50 uppercase tracking-wider">Grain / Textur</p>
+      <GrainControl label="Intensität" value={grainIntensity} onChange={setGrainIntensity} />
+      <GrainControl label="Größe"      value={grainSize}      onChange={setGrainSize} />
+      <GrainControl label="Dichte"     value={grainDensity}   onChange={setGrainDensity} />
+      <GrainControl label="Schärfe"    value={grainSharpness} onChange={setGrainSharpness} />
     </div>
   );
 }

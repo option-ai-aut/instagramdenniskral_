@@ -142,12 +142,18 @@ type CanvasStore = {
   carouselTitle: string;
   savedCarouselId: string | null;
   templates: Template[];
-  /** Global grain intensity for all slides: 0 = off, 100 = max */
-  grainIntensity: number;
+  /** Global grain settings (affect all slides) */
+  grainIntensity: number;  // 0–100 opacity strength
+  grainSize: number;       // 0–100  → baseFrequency 0.9→0.1 (inverted: 0=tiny, 100=large)
+  grainDensity: number;    // 0–100 → numOctaves 1→6
+  grainSharpness: number;  // 0–100 → contrast multiplier
 
   setTitle: (title: string) => void;
   setSavedId: (id: string | null) => void;
   setGrainIntensity: (v: number) => void;
+  setGrainSize: (v: number) => void;
+  setGrainDensity: (v: number) => void;
+  setGrainSharpness: (v: number) => void;
   addSlide: () => void;
   removeSlide: (id: string) => void;
   duplicateSlide: (id: string) => void;
@@ -183,9 +189,15 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
     savedCarouselId: null,
     templates: TEMPLATES,
     grainIntensity: 30,
+    grainSize: 40,       // medium grain size
+    grainDensity: 50,    // medium density
+    grainSharpness: 50,  // medium sharpness
 
     setTitle: (title) => set({ carouselTitle: title }),
     setGrainIntensity: (v) => set({ grainIntensity: Math.max(0, Math.min(100, v)) }),
+    setGrainSize: (v) => set({ grainSize: Math.max(0, Math.min(100, v)) }),
+    setGrainDensity: (v) => set({ grainDensity: Math.max(0, Math.min(100, v)) }),
+    setGrainSharpness: (v) => set({ grainSharpness: Math.max(0, Math.min(100, v)) }),
     setSavedId: (id) => set({ savedCarouselId: id }),
 
     addSlide: () => {

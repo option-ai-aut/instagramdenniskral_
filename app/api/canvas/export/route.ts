@@ -21,13 +21,17 @@ export async function POST(req: NextRequest) {
 
   let slides: Slide[];
   let title: string;
-  let grainIntensity: number;
+  let grainIntensity: number, grainSize: number, grainDensity: number, grainSharpness: number;
 
   try {
     const body = await req.json();
     slides = Array.isArray(body.slides) ? body.slides : [];
     title = typeof body.title === "string" && body.title.trim() ? body.title.trim() : "carousel";
-    grainIntensity = typeof body.grainIntensity === "number" ? Math.max(0, Math.min(100, body.grainIntensity)) : 0;
+    const clamp = (v: unknown, def: number) => typeof v === "number" ? Math.max(0, Math.min(100, v)) : def;
+    grainIntensity = clamp(body.grainIntensity, 0);
+    grainSize      = clamp(body.grainSize,      40);
+    grainDensity   = clamp(body.grainDensity,   50);
+    grainSharpness = clamp(body.grainSharpness, 50);
   } catch {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
@@ -45,7 +49,7 @@ export async function POST(req: NextRequest) {
     const safeTitle = title.replace(/[^a-z0-9_\-]/gi, "-").toLowerCase();
 
     for (let i = 0; i < slides.length; i++) {
-      const buffer = await renderSlideToPng(slides[i], grainIntensity);
+      const buffer = await renderSlideToPng(slides[i], grainIntensity, grainSize, grainDensity, grainSharpness);
       zip.file(`${safeTitle}-slide-${i + 1}.png`, buffer);
     }
 

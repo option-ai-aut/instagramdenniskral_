@@ -16,7 +16,7 @@ function CanvasInner() {
   const {
     slides, selectedSlideId, selectedElementId, carouselTitle, savedCarouselId,
     selectElement, setTitle, setSavedId, templates, loadTemplate, loadCarousel, newCarousel,
-    grainIntensity,
+    grainIntensity, grainSize, grainDensity, grainSharpness,
   } = useCanvasStore();
 
   const selectedSlide = slides.find((s) => s.id === selectedSlideId);
@@ -193,7 +193,7 @@ function CanvasInner() {
       const res = await fetch("/api/canvas/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slides, title: carouselTitle, grainIntensity }),
+        body: JSON.stringify({ slides, title: carouselTitle, grainIntensity, grainSize, grainDensity, grainSharpness }),
       });
 
       if (!res.ok) {

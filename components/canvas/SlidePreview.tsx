@@ -35,7 +35,10 @@ type Props = {
 
 export const SlidePreview = forwardRef<HTMLDivElement, Props>(
   ({ slide, selectedElementId, onSelectElement, scale = 1, interactive = false }, ref) => {
-    const grainIntensity = useCanvasStore((s) => s.grainIntensity);
+    const grainIntensity  = useCanvasStore((s) => s.grainIntensity);
+    const grainSize       = useCanvasStore((s) => s.grainSize ?? 40);
+    const grainDensity    = useCanvasStore((s) => s.grainDensity ?? 50);
+    const grainSharpness  = useCanvasStore((s) => s.grainSharpness ?? 50);
     const bg = slide.background;
     let backgroundStyle: React.CSSProperties = {};
 
@@ -61,37 +64,47 @@ export const SlidePreview = forwardRef<HTMLDivElement, Props>(
         style={backgroundStyle}
         onClick={() => interactive && onSelectElement?.(null)}
       >
-        {/* Grain overlay via SVG feTurbulence – no external file needed */}
-        {grainIntensity > 0 && (
-          <svg
-            aria-hidden
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              opacity: (grainIntensity / 100) * 0.55,
-              mixBlendMode: "overlay",
-              pointerEvents: "none",
-              zIndex: 10,
-            }}
-          >
-            <filter id={`grain-${slide.id}`}>
-              <feTurbulence
-                type="fractalNoise"
-                baseFrequency="0.65"
-                numOctaves="3"
-                stitchTiles="stitch"
-              />
-              <feColorMatrix type="saturate" values="0" />
-            </filter>
-            <rect
-              width="100%"
-              height="100%"
-              filter={`url(#grain-${slide.id})`}
-            />
-          </svg>
-        )}
+        {/* Grain overlay via SVG feTurbulence */}
+        {grainIntensity > 0 && (() => {
+          // grainSize 0=tiny(0.9) → 100=large(0.08)
+          const baseFreq = (0.9 - (grainSize / 100) * 0.82).toFixed(3);
+          // grainDensity 0=1 octave → 100=6 octaves
+          const octaves = Math.round(1 + (grainDensity / 100) * 5);
+          // grainSharpness → contrast filter
+          const contrast = 1 + (grainSharpness / 100) * 4;
+          const opacity = (grainIntensity / 100) * 0.60;
+          return (
+            <svg
+              aria-hidden
+              style={{
+                position: "absolute", inset: 0,
+                width: "100%", height: "100%",
+                opacity,
+                mixBlendMode: "overlay",
+                pointerEvents: "none",
+                zIndex: 10,
+              }}
+            >
+              <defs>
+                <filter id={`grain-${slide.id}`} colorInterpolationFilters="sRGB">
+                  <feTurbulence
+                    type="fractalNoise"
+                    baseFrequency={baseFreq}
+                    numOctaves={String(octaves)}
+                    stitchTiles="stitch"
+                  />
+                  <feColorMatrix type="saturate" values="0" />
+                  <feComponentTransfer>
+                    <feFuncR type="linear" slope={String(contrast)} intercept={String(-(contrast - 1) / 2)} />
+                    <feFuncG type="linear" slope={String(contrast)} intercept={String(-(contrast - 1) / 2)} />
+                    <feFuncB type="linear" slope={String(contrast)} intercept={String(-(contrast - 1) / 2)} />
+                  </feComponentTransfer>
+                </filter>
+              </defs>
+              <rect width="100%" height="100%" filter={`url(#grain-${slide.id})`} />
+            </svg>
+          );
+        })()}
 
         {slide.elements.map((el) => (
           <ElementRenderer

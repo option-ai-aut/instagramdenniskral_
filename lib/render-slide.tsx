@@ -66,15 +66,21 @@ const ANCHOR_TRANSFORM: Record<string, string> = {
   bottom: "translateY(-100%)",
 };
 
-/** Generate a grayscale noise PNG as a base64 data URL (no external file needed). */
-let _cachedGrainDataUrl: string | null = null;
-function getGrainDataUrl(): string {
-  if (_cachedGrainDataUrl) return _cachedGrainDataUrl;
+/** Generate a grayscale noise PNG varying by grain parameters. */
+const _grainCache = new Map<string, string>();
+function getGrainDataUrl(grainSize = 40, grainDensity = 50, grainSharpness = 50): string {
+  const key = `${grainSize}:${grainDensity}:${grainSharpness}`;
+  if (_grainCache.has(key)) return _grainCache.get(key)!;
 
   const { deflateSync } = require("zlib") as typeof import("zlib");
   const { randomBytes } = require("crypto") as typeof import("crypto");
 
-  const W = 256, H = 256;
+  // Larger size value = larger noise blocks (tile 32px→256px)
+  const tileSize = Math.round(32 + (grainSize / 100) * 224);
+  const W = Math.max(64, tileSize), H = Math.max(64, tileSize);
+
+  // Contrast multiplier driven by sharpness (1 = no change, 5 = very sharp)
+  const contrast = 1 + (grainSharpness / 100) * 4;
 
   // Build CRC32 table
   const crcTable = new Uint32Array(256);
@@ -100,14 +106,27 @@ function getGrainDataUrl(): string {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(W, 0);
   ihdr.writeUInt32BE(H, 4);
-  ihdr[8] = 8; // bit-depth
-  ihdr[9] = 0; // color-type: grayscale
+  ihdr[8] = 8; ihdr[9] = 0; // grayscale
 
-  const noise = randomBytes(H * W);
+  // Density: blend multiple noise passes (0=1 pass, 100=4 passes averaged)
+  const passes = 1 + Math.round((grainDensity / 100) * 3);
+  const noiseData = Buffer.alloc(H * W, 128);
+  for (let p = 0; p < passes; p++) {
+    const pass = randomBytes(H * W);
+    for (let i = 0; i < H * W; i++) {
+      noiseData[i] = Math.round((noiseData[i] * p + pass[i]) / (p + 1));
+    }
+  }
+
+  // Apply contrast
   const raw = Buffer.alloc(H * (W + 1));
   for (let y = 0; y < H; y++) {
-    raw[y * (W + 1)] = 0; // filter: None
-    noise.copy(raw, y * (W + 1) + 1, y * W, (y + 1) * W);
+    raw[y * (W + 1)] = 0;
+    for (let x = 0; x < W; x++) {
+      const v = noiseData[y * W + x] / 255;
+      const c = Math.max(0, Math.min(1, contrast * (v - 0.5) + 0.5));
+      raw[y * (W + 1) + 1 + x] = Math.round(c * 255);
+    }
   }
 
   const png = Buffer.concat([
@@ -117,14 +136,18 @@ function getGrainDataUrl(): string {
     chunk("IEND", Buffer.alloc(0)),
   ]);
 
-  _cachedGrainDataUrl = `data:image/png;base64,${png.toString("base64")}`;
-  return _cachedGrainDataUrl;
+  const dataUrl = `data:image/png;base64,${png.toString("base64")}`;
+  _grainCache.set(key, dataUrl);
+  return dataUrl;
 }
 
 /** Render a slide to a PNG ArrayBuffer via Satori. */
 export async function renderSlideToPng(
   slide: Slide,
   grainIntensity = 0,
+  grainSize = 40,
+  grainDensity = 50,
+  grainSharpness = 50,
 ): Promise<ArrayBuffer> {
   const W = SLIDE_WIDTH;
   const H = getSlideHeight(slide.aspectRatio ?? "4:5");
@@ -156,9 +179,9 @@ export async function renderSlideToPng(
     throw new Error("No fonts available for rendering");
   }
 
-  const grainDataUrl = grainIntensity > 0 ? getGrainDataUrl() : null;
-  const grainOpacity = (grainIntensity / 100) * 0.45;
-  const grainTileSize = 256; // matches the grain.png dimensions
+  const grainDataUrl = grainIntensity > 0 ? getGrainDataUrl(grainSize, grainDensity, grainSharpness) : null;
+  const grainOpacity = (grainIntensity / 100) * 0.55;
+  const grainTileSize = 256;
 
   const response = new ImageResponse(
     (
