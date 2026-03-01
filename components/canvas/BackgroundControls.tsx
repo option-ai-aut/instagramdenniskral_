@@ -183,8 +183,8 @@ export function BackgroundControls() {
           </div>
         )}
 
-        {/* Global grain */}
-        <div className="pt-2 border-t" style={{ borderColor: "var(--glass-border)" }}>
+        {/* Global grain – always visible */}
+        <div className="rounded-xl border p-3 space-y-2" style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
           <GrainSlider />
         </div>
       </div>
