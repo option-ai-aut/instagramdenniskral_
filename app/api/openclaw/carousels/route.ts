@@ -34,16 +34,24 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 /**
- * Normalise any newline variant Openclaw might send:
- *   - literal \n  (backslash + n, JSON "\\n")
- *   - literal /n  (forward-slash + n)
- *   - \\n         (double-escaped, JSON "\\\\n")
- * All become a real newline character (\u000A).
+ * Normalise any newline variant Openclaw might send.
+ * Uses Unicode code-point literals to avoid ALL regex-escaping ambiguity:
+ *   \u005C = backslash (\)
+ *   \u002F = forward slash (/)
+ *   \u006E = letter n
+ *   \u000A = real newline (LF)
+ *   \u000D = carriage return (CR)
  */
 function normalizeNewlines(text: string): string {
   return text
-    .replace(/\\n/g, "\n")   // backslash-n  → newline
-    .replace(/\/n/g, "\n");  // forward-slash-n → newline
+    // literal \n (backslash + n) → real newline
+    .split("\u005C\u006E").join("\u000A")
+    // literal /n (forward-slash + n) → real newline
+    .split("\u002F\u006E").join("\u000A")
+    // Windows CR+LF → LF
+    .split("\u000D\u000A").join("\u000A")
+    // lone CR → LF
+    .split("\u000D").join("\u000A");
 }
 
 // Built-in template definitions (mirrors canvasStore.ts – fonts are fixed per template)

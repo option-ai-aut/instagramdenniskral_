@@ -171,7 +171,11 @@ function ElementRenderer({
           fontFamily: element.fontFamily ?? "Inter, sans-serif",
         }}
       >
-        {element.text.replace(/\\n/g, "\n").replace(/\/n/g, "\n")}
+        {element.text
+          .split("\u005C\u006E").join("\u000A")
+          .split("\u002F\u006E").join("\u000A")
+          .split("\u000D\u000A").join("\u000A")
+          .split("\u000D").join("\u000A")}
       </p>
 
       {/* Lock indicator – only visible in interactive (editor) mode */}

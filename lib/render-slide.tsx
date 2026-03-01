@@ -251,7 +251,12 @@ export async function renderSlideToPng(
                   padding: `0 ${SATORI_PADDING}px`,
               }}
             >
-              {el.text.replace(/\\n/g, "\n").replace(/\/n/g, "\n").split("\n").map((line: string, li: number) => (
+              {el.text
+                .split("\u005C\u006E").join("\u000A")   // literal \n → newline
+                .split("\u002F\u006E").join("\u000A")   // literal /n → newline
+                .split("\u000D\u000A").join("\u000A")   // CRLF → LF
+                .split("\u000D").join("\u000A")          // CR → LF
+                .split("\u000A").map((line: string, li: number) => (
                 <span
                   key={li}
                   style={{
