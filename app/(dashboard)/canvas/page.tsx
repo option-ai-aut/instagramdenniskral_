@@ -23,6 +23,34 @@ function CanvasInner() {
   const selectedSlide = slides.find((s) => s.id === selectedSlideId);
   const slideRef = useRef<HTMLDivElement>(null);
 
+  // Auto-save grain whenever it changes (debounced 800ms), only for saved carousels
+  const grainAutoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!savedCarouselId) return; // no saved carousel → nothing to patch
+    if (grainAutoSaveRef.current) clearTimeout(grainAutoSaveRef.current);
+    grainAutoSaveRef.current = setTimeout(async () => {
+      try {
+        await fetch(`/api/carousel/${savedCarouselId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slidesJson: buildSlidesPayload(slides, {
+              intensity: grainIntensity,
+              size: grainSize,
+              density: grainDensity,
+              sharpness: grainSharpness,
+            }),
+          }),
+        });
+      } catch {
+        // silent – non-critical
+      }
+    }, 800);
+    return () => { if (grainAutoSaveRef.current) clearTimeout(grainAutoSaveRef.current); };
+  // Only watch grain values, not slides (slides have their own save path)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grainIntensity, grainSize, grainDensity, grainSharpness, savedCarouselId]);
+
   const [tab, setTab] = useState<ControlsTab>("elements");
   const [mobileView, setMobileView] = useState<MobileView>("preview");
   const [zoom, setZoom] = useState(1);

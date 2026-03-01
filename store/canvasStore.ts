@@ -302,7 +302,17 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         id: nanoid(),
         elements: sl.elements.map((el) => ({ ...el, id: nanoid() })),
       }));
-      set({ slides, selectedSlideId: slides[0]?.id ?? null, selectedElementId: null, savedCarouselId: null });
+      // Reset grain to defaults – built-in templates have no saved grain
+      set({
+        slides,
+        selectedSlideId: slides[0]?.id ?? null,
+        selectedElementId: null,
+        savedCarouselId: null,
+        grainIntensity: 0,
+        grainSize: 40,
+        grainDensity: 50,
+        grainSharpness: 50,
+      });
     },
 
     loadCarousel: (id, title, rawSlides, grain) => {
@@ -311,29 +321,33 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         id: nanoid(),
         elements: sl.elements.map((el) => ({ ...el, id: nanoid() })),
       }));
+      // Always reset grain: use saved value if present, otherwise default to 0
       set({
         slides,
         selectedSlideId: slides[0]?.id ?? null,
         selectedElementId: null,
         carouselTitle: title,
         savedCarouselId: id,
-        ...(grain ? {
-          grainIntensity: grain.intensity,
-          grainSize:      grain.size,
-          grainDensity:   grain.density,
-          grainSharpness: grain.sharpness,
-        } : {}),
+        grainIntensity: grain?.intensity ?? 0,
+        grainSize:      grain?.size      ?? 40,
+        grainDensity:   grain?.density   ?? 50,
+        grainSharpness: grain?.sharpness ?? 50,
       });
     },
 
     newCarousel: () => {
       const slide = makeDefaultSlide();
+      // Reset grain to defaults for a fresh carousel
       set({
         slides: [slide],
         selectedSlideId: slide.id,
         selectedElementId: null,
         carouselTitle: "Neues Karussell",
         savedCarouselId: null,
+        grainIntensity: 0,
+        grainSize: 40,
+        grainDensity: 50,
+        grainSharpness: 50,
       });
     },
 
