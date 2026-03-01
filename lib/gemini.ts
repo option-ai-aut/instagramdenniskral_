@@ -2,7 +2,8 @@ import { GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY! });
 
-const MODEL = "gemini-3-pro-image-preview";
+// Image generation model (supports responseModalities: ["IMAGE"])
+const MODEL = "gemini-2.0-flash-preview-image-generation";
 
 export async function editImageWithGemini(
   imageBase64: string,
