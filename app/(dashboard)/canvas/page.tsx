@@ -4,6 +4,7 @@ import { useRef, useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { DownloadIcon, SaveIcon, LoaderIcon, CheckIcon, BookmarkIcon, LayoutTemplateIcon } from "lucide-react";
 import { useCanvasStore } from "@/store/canvasStore";
+import { parseSlidesPayload, buildSlidesPayload } from "@/lib/slides-payload";
 import { SlideList } from "@/components/canvas/SlideList";
 import { SlidePreview } from "@/components/canvas/SlidePreview";
 import { ControlsPanel, type SavedCarousel, type ControlsTab } from "@/components/canvas/ControlsPanel";
@@ -58,7 +59,8 @@ function CanvasInner() {
       .then((data) => {
         if (!data?.carousel) return;
         const c = data.carousel;
-        loadCarousel(c.id, c.title, Array.isArray(c.slidesJson) ? c.slidesJson : []);
+        const { slides: s, grain } = parseSlidesPayload(c.slidesJson);
+        loadCarousel(c.id, c.title, s, grain);
       })
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -74,7 +76,10 @@ function CanvasInner() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: carouselTitle, slidesJson: slides }),
+        body: JSON.stringify({
+          title: carouselTitle,
+          slidesJson: buildSlidesPayload(slides, { intensity: grainIntensity, size: grainSize, density: grainDensity, sharpness: grainSharpness }),
+        }),
       });
 
       if (!res.ok) throw new Error(`Speichern fehlgeschlagen (${res.status})`);
@@ -83,7 +88,7 @@ function CanvasInner() {
         setSavedCarousels((prev) =>
           prev.map((c) =>
             c.id === savedCarouselId
-              ? { ...c, title: carouselTitle, slidesJson: slides, updatedAt: new Date().toISOString() }
+              ? { ...c, title: carouselTitle, slidesJson: buildSlidesPayload(slides, { intensity: grainIntensity, size: grainSize, density: grainDensity, sharpness: grainSharpness }), updatedAt: new Date().toISOString() }
               : c
           )
         );
@@ -104,7 +109,8 @@ function CanvasInner() {
   };
 
   const handleLoadCarousel = useCallback((carousel: SavedCarousel) => {
-    loadCarousel(carousel.id, carousel.title, carousel.slidesJson);
+    const { slides: s, grain } = parseSlidesPayload(carousel.slidesJson);
+    loadCarousel(carousel.id, carousel.title, s, grain);
     setMobileView("preview");
   }, [loadCarousel]);
 
@@ -128,7 +134,10 @@ function CanvasInner() {
       const res = await fetch(`/api/carousel/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: carouselTitle, slidesJson: slides }),
+        body: JSON.stringify({
+          title: carouselTitle,
+          slidesJson: buildSlidesPayload(slides, { intensity: grainIntensity, size: grainSize, density: grainDensity, sharpness: grainSharpness }),
+        }),
       });
       if (!res.ok) throw new Error(`Überschreiben fehlgeschlagen (${res.status})`);
       setSavedCarousels((prev) =>

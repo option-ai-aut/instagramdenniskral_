@@ -164,7 +164,7 @@ type CanvasStore = {
   updateElement: (slideId: string, elementId: string, update: Partial<TextElement>) => void;
   removeElement: (slideId: string, elementId: string) => void;
   loadTemplate: (templateId: string) => void;
-  loadCarousel: (id: string, title: string, slides: Slide[]) => void;
+  loadCarousel: (id: string, title: string, slides: Slide[], grain?: { intensity: number; size: number; density: number; sharpness: number }) => void;
   newCarousel: () => void;
   reorderSlides: (from: number, to: number) => void;
   /**
@@ -305,7 +305,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
       set({ slides, selectedSlideId: slides[0]?.id ?? null, selectedElementId: null, savedCarouselId: null });
     },
 
-    loadCarousel: (id, title, rawSlides) => {
+    loadCarousel: (id, title, rawSlides, grain) => {
       const slides = rawSlides.map((sl) => ({
         ...sl,
         id: nanoid(),
@@ -317,6 +317,12 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         selectedElementId: null,
         carouselTitle: title,
         savedCarouselId: id,
+        ...(grain ? {
+          grainIntensity: grain.intensity,
+          grainSize:      grain.size,
+          grainDensity:   grain.density,
+          grainSharpness: grain.sharpness,
+        } : {}),
       });
     },
 

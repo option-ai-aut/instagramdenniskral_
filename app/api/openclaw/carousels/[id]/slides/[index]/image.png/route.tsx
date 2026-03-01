@@ -9,6 +9,7 @@ import { getDb } from "@/lib/db";
 import { SYSTEM_USER_ID } from "@/lib/auth";
 import { renderSlideToPng } from "@/lib/render-slide";
 import type { Slide } from "@/store/canvasStore";
+import { parseSlidesPayload } from "@/lib/slides-payload";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -39,7 +40,7 @@ export async function GET(
       return new Response("Not found", { status: 404 });
     }
 
-    const slides: Slide[] = Array.isArray(carousel.slidesJson) ? carousel.slidesJson : [];
+    const { slides, grain } = parseSlidesPayload(carousel.slidesJson);
     const slide = slides[slideIndex];
 
     if (!slide) {
@@ -49,7 +50,7 @@ export async function GET(
       );
     }
 
-    const buffer = await renderSlideToPng(slide);
+    const buffer = await renderSlideToPng(slide, grain.intensity, grain.size, grain.density, grain.sharpness);
 
     return new Response(buffer, {
       status: 200,

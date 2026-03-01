@@ -29,6 +29,7 @@ import { SYSTEM_USER_ID } from "@/lib/auth";
 import { renderSlideToPng } from "@/lib/render-slide";
 import type { Slide, TextElement } from "@/store/canvasStore";
 import { nanoid } from "@/lib/nanoid";
+import { parseSlidesPayload } from "@/lib/slides-payload";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -154,11 +155,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Clamp grain
-    const grain = Math.max(0, Math.min(100, Number(grainIntensity) || 0));
-
     // ── 1. Load template ───────────────────────────────────────────────────────
     let slides: Slide[] | null = getBuiltinTemplate(templateId);
+    // savedGrain: the grain settings that were designed into the template
+    let savedGrain = { intensity: 0, size: 40, density: 50, sharpness: 50 };
 
     if (!slides) {
       const db = getDb();
@@ -175,8 +175,20 @@ export async function POST(req: NextRequest) {
           { status: 404 }
         );
       }
-      slides = Array.isArray(carousel.slidesJson) ? carousel.slidesJson : [];
+      const parsed = parseSlidesPayload(carousel.slidesJson);
+      slides = parsed.slides;
+      savedGrain = parsed.grain;
     }
+
+    // Use saved grain from template as defaults; grainIntensity request param can override intensity only
+    const clampG = (v: unknown, def: number) =>
+      typeof v === "number" ? Math.max(0, Math.min(100, v)) : def;
+    const grain = {
+      intensity: grainIntensity !== undefined ? clampG(grainIntensity, savedGrain.intensity) : savedGrain.intensity,
+      size:      savedGrain.size,
+      density:   savedGrain.density,
+      sharpness: savedGrain.sharpness,
+    };
 
     if (!slides || slides.length === 0) {
       return NextResponse.json({ error: "Template has no slides." }, { status: 400 });
@@ -218,7 +230,7 @@ export async function POST(req: NextRequest) {
     ).replace(/[^a-z0-9_\-]/gi, "-").toLowerCase();
 
     for (let i = 0; i < finalSlides.length; i++) {
-      const buffer = await renderSlideToPng(finalSlides[i], grain);
+      const buffer = await renderSlideToPng(finalSlides[i], grain.intensity, grain.size, grain.density, grain.sharpness);
       zip.file(`${safeTitle}-slide-${i + 1}.png`, buffer);
     }
 

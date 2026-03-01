@@ -14,6 +14,7 @@ import { getDb } from "@/lib/db";
 import { SYSTEM_USER_ID } from "@/lib/auth";
 import { renderSlideToPng } from "@/lib/render-slide";
 import type { Slide } from "@/store/canvasStore";
+import { parseSlidesPayload } from "@/lib/slides-payload";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -40,19 +41,27 @@ export async function GET(
       return new Response("Carousel not found", { status: 404 });
     }
 
-    const slides: Slide[] = Array.isArray(carousel.slidesJson) ? carousel.slidesJson : [];
+    const { slides, grain: savedGrain } = parseSlidesPayload(carousel.slidesJson);
 
     if (slides.length === 0) {
       return new Response("Carousel has no slides", { status: 400 });
     }
 
-    // Grain params via query: ?grain=30&grainSize=40&grainDensity=50&grainSharpness=50
+    // Query params override saved grain (omit param = use saved template value)
     const clamp = (v: string | null, def: number) =>
       v !== null ? Math.max(0, Math.min(100, Number(v) || def)) : def;
-    const grainIntensity = clamp(req.nextUrl.searchParams.get("grain"), 0);
-    const grainSize      = clamp(req.nextUrl.searchParams.get("grainSize"), 40);
-    const grainDensity   = clamp(req.nextUrl.searchParams.get("grainDensity"), 50);
-    const grainSharpness = clamp(req.nextUrl.searchParams.get("grainSharpness"), 50);
+    const grainIntensity = req.nextUrl.searchParams.has("grain")
+      ? clamp(req.nextUrl.searchParams.get("grain"), savedGrain.intensity)
+      : savedGrain.intensity;
+    const grainSize      = req.nextUrl.searchParams.has("grainSize")
+      ? clamp(req.nextUrl.searchParams.get("grainSize"), savedGrain.size)
+      : savedGrain.size;
+    const grainDensity   = req.nextUrl.searchParams.has("grainDensity")
+      ? clamp(req.nextUrl.searchParams.get("grainDensity"), savedGrain.density)
+      : savedGrain.density;
+    const grainSharpness = req.nextUrl.searchParams.has("grainSharpness")
+      ? clamp(req.nextUrl.searchParams.get("grainSharpness"), savedGrain.sharpness)
+      : savedGrain.sharpness;
 
     const zip = new JSZip();
     const safeTitle = (carousel.title ?? "carousel").replace(/[^a-z0-9_\-]/gi, "-").toLowerCase();
