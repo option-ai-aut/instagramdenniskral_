@@ -13,6 +13,8 @@ import {
   BookmarkIcon,
   BookmarkCheckIcon,
   BrainCircuitIcon,
+  ImageIcon,
+  WandSparklesIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { downloadDataUrl } from "@/lib/utils";
@@ -35,6 +37,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
   const [savedPrompts, setSavedPrompts] = useState<SavedPrompt[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(false);
 
   const fetchPrompts = useCallback(async () => {
     try {
@@ -109,7 +112,9 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
 
   const isProcessing = selected.status === "processing";
   const hasResult = !!selected.resultDataUrl;
-  const previewSrc = hasResult ? selected.resultDataUrl! : selected.originalDataUrl;
+  // When result exists and user hasn't toggled to original: show result
+  const viewingOriginal = hasResult && showOriginal;
+  const previewSrc = viewingOriginal ? selected.originalDataUrl : (hasResult ? selected.resultDataUrl! : selected.originalDataUrl);
 
   const handleDownload = () => {
     downloadDataUrl(selected.resultDataUrl!, `denniskral_${selected.id}.png`);
@@ -128,14 +133,15 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
         <div className="flex-1 flex flex-col min-w-0 p-4">
           <div
             className={cn(
-              "flex-1 min-h-0 relative rounded-2xl overflow-hidden border cursor-zoom-in",
-              hasResult ? "border-[#1d4ed8]/30" : "border-white/[0.06]"
+              "flex-1 min-h-0 relative rounded-2xl overflow-hidden border",
+              hasResult && !viewingOriginal ? "border-[#1d4ed8]/30" : "border-white/[0.06]",
+              hasResult ? "cursor-zoom-in" : ""
             )}
-            onClick={() => hasResult && setLightbox(true)}
+            onClick={() => hasResult && !viewingOriginal && setLightbox(true)}
           >
             <Image
               src={previewSrc}
-              alt={hasResult ? "KI Ergebnis" : "Original"}
+              alt={viewingOriginal ? "Original" : hasResult ? "KI Ergebnis" : "Original"}
               fill
               className="object-contain"
               sizes="(max-width: 1280px) 60vw, 800px"
@@ -152,14 +158,23 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
               </div>
             )}
 
-            {hasResult && !isProcessing && (
-              <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-[#1d4ed8]/80 backdrop-blur-sm text-white border border-[#60a5fa]/30">
-                <CheckCircleIcon size={10} />
-                KI Ergebnis
+            {/* Badge: Original / KI Ergebnis */}
+            {!isProcessing && (
+              <div className={cn(
+                "absolute top-3 left-3 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold backdrop-blur-sm border",
+                viewingOriginal
+                  ? "bg-black/60 text-white/70 border-white/10"
+                  : hasResult
+                  ? "bg-[#1d4ed8]/80 text-white border-[#60a5fa]/30"
+                  : "bg-black/60 text-white/50 border-white/10"
+              )}>
+                {viewingOriginal ? <ImageIcon size={10} /> : hasResult ? <CheckCircleIcon size={10} /> : <ImageIcon size={10} />}
+                {viewingOriginal ? "Original" : hasResult ? "KI Ergebnis" : "Original"}
               </div>
             )}
 
-            {hasResult && !isProcessing && (
+            {/* Maximize hint */}
+            {hasResult && !isProcessing && !viewingOriginal && (
               <div className="absolute top-3 right-3">
                 <div className="w-7 h-7 rounded-lg bg-black/60 border border-white/10 flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity">
                   <MaximizeIcon size={12} className="text-white" />
@@ -171,6 +186,19 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
           {/* Action buttons below image */}
           {hasResult && !isProcessing && (
             <div className="mt-3 flex gap-2 flex-shrink-0">
+              {/* Toggle Original / Ergebnis */}
+              <button
+                onClick={() => setShowOriginal((v) => !v)}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-medium border transition-all",
+                  viewingOriginal
+                    ? "border-[#1d4ed8]/40 text-[#60a5fa] bg-[#1d4ed8]/10"
+                    : "border-white/10 text-white/50 hover:text-white hover:border-white/20"
+                )}
+              >
+                {viewingOriginal ? <WandSparklesIcon size={11} /> : <ImageIcon size={11} />}
+                {viewingOriginal ? "Ergebnis" : "Original"}
+              </button>
               <button
                 onClick={() => useResultAsBase(selected.id)}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-medium border border-[#1d4ed8]/25 text-[#60a5fa] hover:bg-[#1d4ed8]/10 transition-all"
@@ -352,13 +380,13 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
             "h-[45vw] min-h-[180px] max-h-[280px]",
           )}
           style={{ borderColor: "var(--glass-border)" }}
-          onClick={() => hasResult && setLightbox(true)}
+          onClick={() => hasResult && !viewingOriginal && setLightbox(true)}
         >
           <Image
             src={previewSrc}
-            alt={hasResult ? "KI Ergebnis" : "Original"}
+            alt={viewingOriginal ? "Original" : hasResult ? "KI Ergebnis" : "Original"}
             fill
-            className="object-contain cursor-zoom-in"
+            className={cn("object-contain", hasResult && !viewingOriginal && "cursor-zoom-in")}
             sizes="100vw"
             unoptimized
           />
@@ -368,10 +396,13 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
               <p className="text-[11px] text-white/60">Gemini arbeitet…</p>
             </div>
           )}
-          {hasResult && !isProcessing && (
-            <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold bg-[#1d4ed8]/80 backdrop-blur-sm text-white border border-[#60a5fa]/30">
-              <CheckCircleIcon size={10} />
-              KI Ergebnis
+          {!isProcessing && (
+            <div className={cn(
+              "absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold backdrop-blur-sm border",
+              viewingOriginal ? "bg-black/60 text-white/70 border-white/10" : hasResult ? "bg-[#1d4ed8]/80 text-white border-[#60a5fa]/30" : "bg-black/60 text-white/50 border-white/10"
+            )}>
+              {viewingOriginal ? <ImageIcon size={10} /> : hasResult ? <CheckCircleIcon size={10} /> : <ImageIcon size={10} />}
+              {viewingOriginal ? "Original" : hasResult ? "KI Ergebnis" : "Original"}
             </div>
           )}
         </div>
@@ -379,6 +410,16 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
         {/* Mobile action buttons */}
         {hasResult && !isProcessing && (
           <div className="flex gap-2 px-4 py-2 flex-shrink-0 border-b" style={{ borderColor: "var(--glass-border)" }}>
+            <button
+              onClick={() => setShowOriginal((v) => !v)}
+              className={cn(
+                "flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium border transition-all",
+                viewingOriginal ? "border-[#1d4ed8]/40 text-[#60a5fa] bg-[#1d4ed8]/10" : "border-white/10 text-white/50"
+              )}
+            >
+              {viewingOriginal ? <WandSparklesIcon size={11} /> : <ImageIcon size={11} />}
+              {viewingOriginal ? "KI" : "Original"}
+            </button>
             <button onClick={() => useResultAsBase(selected.id)} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-medium border border-[#1d4ed8]/25 text-[#60a5fa] hover:bg-[#1d4ed8]/10 transition-all">
               <RefreshCwIcon size={11} />Als Original
             </button>
