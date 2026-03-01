@@ -58,22 +58,36 @@ export const SlidePreview = forwardRef<HTMLDivElement, Props>(
         style={backgroundStyle}
         onClick={() => interactive && onSelectElement?.(null)}
       >
-        {/* Grain overlay */}
+        {/* Grain overlay via SVG feTurbulence – no external file needed */}
         {grainIntensity > 0 && (
-          <div
+          <svg
             aria-hidden
             style={{
               position: "absolute",
               inset: 0,
-              backgroundImage: "url(/textures/grain.png)",
-              backgroundRepeat: "repeat",
-              backgroundSize: `${Math.round(256 * scale)}px`,
-              opacity: (grainIntensity / 100) * 0.45,
+              width: "100%",
+              height: "100%",
+              opacity: (grainIntensity / 100) * 0.55,
               mixBlendMode: "overlay",
               pointerEvents: "none",
               zIndex: 10,
             }}
-          />
+          >
+            <filter id={`grain-${slide.id}`}>
+              <feTurbulence
+                type="fractalNoise"
+                baseFrequency="0.65"
+                numOctaves="3"
+                stitchTiles="stitch"
+              />
+              <feColorMatrix type="saturate" values="0" />
+            </filter>
+            <rect
+              width="100%"
+              height="100%"
+              filter={`url(#grain-${slide.id})`}
+            />
+          </svg>
         )}
 
         {slide.elements.map((el) => (

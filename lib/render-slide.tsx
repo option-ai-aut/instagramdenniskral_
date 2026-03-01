@@ -60,15 +60,59 @@ const ANCHOR_TRANSFORM: Record<string, string> = {
   bottom: "translateY(-100%)",
 };
 
-/** Load the bundled grain texture as a base64 data URL for Satori overlay. */
-function getGrainDataUrl(): string | null {
-  try {
-    const grainPath = path.join(process.cwd(), "public", "textures", "grain.png");
-    const buf = fs.readFileSync(grainPath);
-    return `data:image/png;base64,${buf.toString("base64")}`;
-  } catch {
-    return null;
+/** Generate a grayscale noise PNG as a base64 data URL (no external file needed). */
+let _cachedGrainDataUrl: string | null = null;
+function getGrainDataUrl(): string {
+  if (_cachedGrainDataUrl) return _cachedGrainDataUrl;
+
+  const { deflateSync } = require("zlib") as typeof import("zlib");
+  const { randomBytes } = require("crypto") as typeof import("crypto");
+
+  const W = 256, H = 256;
+
+  // Build CRC32 table
+  const crcTable = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+    crcTable[i] = c;
   }
+  function crc32(buf: Buffer): Buffer {
+    let crc = 0xFFFFFFFF;
+    for (const b of buf) crc = crcTable[(crc ^ b) & 0xFF] ^ (crc >>> 8);
+    const out = Buffer.alloc(4);
+    out.writeUInt32BE((~crc) >>> 0);
+    return out;
+  }
+  function chunk(type: string, data: Buffer): Buffer {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const typeB = Buffer.from(type, "ascii");
+    return Buffer.concat([len, typeB, data, crc32(Buffer.concat([typeB, data]))]);
+  }
+
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(W, 0);
+  ihdr.writeUInt32BE(H, 4);
+  ihdr[8] = 8; // bit-depth
+  ihdr[9] = 0; // color-type: grayscale
+
+  const noise = randomBytes(H * W);
+  const raw = Buffer.alloc(H * (W + 1));
+  for (let y = 0; y < H; y++) {
+    raw[y * (W + 1)] = 0; // filter: None
+    noise.copy(raw, y * (W + 1) + 1, y * W, (y + 1) * W);
+  }
+
+  const png = Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk("IHDR", ihdr),
+    chunk("IDAT", deflateSync(raw, { level: 6 })),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+
+  _cachedGrainDataUrl = `data:image/png;base64,${png.toString("base64")}`;
+  return _cachedGrainDataUrl;
 }
 
 /** Render a slide to a PNG ArrayBuffer via Satori. */
