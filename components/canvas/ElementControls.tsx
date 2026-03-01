@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Trash2Icon, PlusIcon, ChevronDownIcon, TypeIcon, LockIcon, LockOpenIcon, AlignStartVertical, AlignCenterVertical, AlignEndVertical, CopyCheckIcon } from "lucide-react";
+import { Trash2Icon, PlusIcon, ChevronDownIcon, TypeIcon, LockIcon, LockOpenIcon, AlignStartVertical, AlignCenterVertical, AlignEndVertical, Link2Icon } from "lucide-react";
 import { useCanvasStore, type TextElement } from "@/store/canvasStore";
 import { DISPLAY_FONTS, BODY_FONTS } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
@@ -207,25 +207,29 @@ export function ElementControls() {
     setLocalText(element?.text ?? "");
   }, [element?.id]); // only sync when element SELECTION changes, not on every text update
 
-  // Sibling detection: recalculate whenever slides or selected element changes
+  // Sibling detection
   const siblings = selectedSlideId && selectedElementId
     ? findSiblings(selectedSlideId, selectedElementId)
     : [];
 
-  const [syncDone, setSyncDone] = useState(false);
-  useEffect(() => { setSyncDone(false); }, [selectedElementId]);
+  // Live-sync mode: "off" | "text+style" | "style"
+  type SyncMode = "off" | "text+style" | "style";
+  const [syncMode, setSyncMode] = useState<SyncMode>("off");
 
-  const handleSync = useCallback((includeText: boolean) => {
-    if (!selectedSlideId || !selectedElementId) return;
-    syncToSiblings(selectedSlideId, selectedElementId, includeText);
-    setSyncDone(true);
-    setTimeout(() => setSyncDone(false), 2500);
-  }, [selectedSlideId, selectedElementId, syncToSiblings]);
+  // Reset sync mode when element selection changes
+  useEffect(() => { setSyncMode("off"); }, [selectedElementId]);
 
   const update = useCallback((patch: Partial<TextElement>) => {
     if (!selectedSlideId || !selectedElementId) return;
     updateElement(selectedSlideId, selectedElementId, patch);
-  }, [selectedSlideId, selectedElementId, updateElement]);
+    // Live-sync: propagate to siblings immediately after updating the source element
+    if (syncMode !== "off") {
+      // Use setTimeout(0) so the store update is committed first
+      setTimeout(() => {
+        syncToSiblings(selectedSlideId, selectedElementId, syncMode === "text+style");
+      }, 0);
+    }
+  }, [selectedSlideId, selectedElementId, updateElement, syncMode, syncToSiblings]);
 
   return (
     <div className="flex flex-col h-full">
@@ -261,36 +265,40 @@ export function ElementControls() {
           <>
             <div className="h-px" style={{ background: "var(--glass-border)" }} />
 
-            {/* ── Sibling-sync banner ── */}
+            {/* ── Live-Sync zu Geschwister-Slides ── */}
             {siblings.length > 0 && (
               <div
                 className="rounded-xl border p-3 space-y-2"
-                style={{ borderColor: "rgba(96,165,250,0.2)", background: "rgba(29,78,216,0.07)" }}
+                style={{ borderColor: syncMode !== "off" ? "rgba(96,165,250,0.25)" : "rgba(255,255,255,0.06)", background: syncMode !== "off" ? "rgba(29,78,216,0.08)" : "rgba(255,255,255,0.02)" }}
               >
-                <div className="flex items-center gap-2">
-                  <CopyCheckIcon size={12} className="text-[#60a5fa] flex-shrink-0" />
-                  <p className="text-[11px] text-[#60a5fa]/90 leading-tight">
-                    Gleiches Element auf <strong>{siblings.length}</strong> anderen Slide{siblings.length !== 1 ? "s" : ""} erkannt
+                <div className="flex items-center gap-1.5">
+                  <Link2Icon size={11} className={syncMode !== "off" ? "text-[#60a5fa]" : "text-white/30"} />
+                  <p className="text-[11px] text-white/50 flex-1">
+                    Auf allen <span className="text-white/80 font-medium">{siblings.length + 1} Slides</span> live ändern
                   </p>
                 </div>
-                {syncDone ? (
-                  <p className="text-[10px] text-[#34d399] text-center">✓ Auf alle Slides angewendet</p>
-                ) : (
-                  <div className="flex gap-1.5">
+                <div className="flex gap-1">
+                  {([
+                    { id: "off",        label: "Aus" },
+                    { id: "text+style", label: "Text + Stil" },
+                    { id: "style",      label: "Nur Stil" },
+                  ] as { id: SyncMode; label: string }[]).map((opt) => (
                     <button
-                      onClick={() => handleSync(true)}
-                      className="flex-1 py-1.5 rounded-lg text-[10px] font-medium text-white bg-[#1d4ed8]/70 hover:bg-[#1d4ed8] transition-all"
+                      key={opt.id}
+                      onClick={() => setSyncMode(opt.id)}
+                      className={cn(
+                        "flex-1 py-1.5 text-[10px] rounded-lg border font-medium transition-all",
+                        syncMode === opt.id
+                          ? opt.id === "off"
+                            ? "border-white/20 bg-white/[0.06] text-white/70"
+                            : "border-[#1d4ed8]/50 bg-[#1d4ed8]/20 text-[#60a5fa]"
+                          : "border-white/[0.06] text-white/25 hover:text-white/50 hover:border-white/15"
+                      )}
                     >
-                      Text + Stil
+                      {opt.label}
                     </button>
-                    <button
-                      onClick={() => handleSync(false)}
-                      className="flex-1 py-1.5 rounded-lg text-[10px] font-medium text-[#60a5fa] border border-[#1d4ed8]/30 hover:border-[#1d4ed8]/60 transition-all"
-                    >
-                      Nur Stil
-                    </button>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
             )}
 
