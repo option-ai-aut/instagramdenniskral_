@@ -22,6 +22,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Prompt zu lang (max 2000 Zeichen)" }, { status: 400 });
     }
 
+    // Limit base64 payload to ~10 MB (base64 overhead ~1.37×)
+    if (typeof imageBase64 !== "string" || imageBase64.length > 14_000_000) {
+      return NextResponse.json({ error: "Bild zu groß (max 10 MB)" }, { status: 400 });
+    }
+
     const isRealDbId = !imageItemId.startsWith("temp-");
     const db = getDb();
 

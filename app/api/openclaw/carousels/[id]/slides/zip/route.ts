@@ -46,17 +46,19 @@ export async function GET(
       return new Response("Carousel has no slides", { status: 400 });
     }
 
-    // Read optional grain intensity from query param: ?grain=30 (0-100, default 0)
-    const grainParam = req.nextUrl.searchParams.get("grain");
-    const grainIntensity = grainParam !== null
-      ? Math.max(0, Math.min(100, Number(grainParam) || 0))
-      : 0;
+    // Grain params via query: ?grain=30&grainSize=40&grainDensity=50&grainSharpness=50
+    const clamp = (v: string | null, def: number) =>
+      v !== null ? Math.max(0, Math.min(100, Number(v) || def)) : def;
+    const grainIntensity = clamp(req.nextUrl.searchParams.get("grain"), 0);
+    const grainSize      = clamp(req.nextUrl.searchParams.get("grainSize"), 40);
+    const grainDensity   = clamp(req.nextUrl.searchParams.get("grainDensity"), 50);
+    const grainSharpness = clamp(req.nextUrl.searchParams.get("grainSharpness"), 50);
 
     const zip = new JSZip();
     const safeTitle = (carousel.title ?? "carousel").replace(/[^a-z0-9_\-]/gi, "-").toLowerCase();
 
     for (let i = 0; i < slides.length; i++) {
-      const buffer = await renderSlideToPng(slides[i], grainIntensity);
+      const buffer = await renderSlideToPng(slides[i], grainIntensity, grainSize, grainDensity, grainSharpness);
       zip.file(`slide-${i + 1}.png`, buffer);
     }
 

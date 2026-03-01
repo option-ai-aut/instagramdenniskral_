@@ -114,6 +114,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Maximal 20 Bilder gleichzeitig" }, { status: 400 });
     }
 
+    // Validate each image entry
+    for (const img of images) {
+      if (typeof img.imageBase64 !== "string" || img.imageBase64.length > 14_000_000) {
+        return NextResponse.json({ error: "Ein Bild ist zu groß oder ungültig (max 10 MB)" }, { status: 400 });
+      }
+    }
+
     const results = await Promise.all(images.map((img) => processImage(img, savedPrompts)));
 
     return NextResponse.json({ results });

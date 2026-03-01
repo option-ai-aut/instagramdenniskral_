@@ -34,7 +34,16 @@ export async function POST(
       return NextResponse.json({ error: "imageBase64 is required" }, { status: 400 });
     }
 
-    const safeMime = typeof mimeType === "string" ? mimeType : "image/jpeg";
+    // Limit base64 payload to ~10 MB
+    if (imageBase64.length > 14_000_000) {
+      return NextResponse.json({ error: "Bild zu groß (max 10 MB)" }, { status: 400 });
+    }
+
+    // MIME type whitelist
+    const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    const safeMime = typeof mimeType === "string" && ALLOWED_MIMES.includes(mimeType)
+      ? mimeType
+      : "image/jpeg";
     const ext = safeMime.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
     const itemId = newId();
     const path = `${SYSTEM_USER_ID}/originals/${sessionId}-${Date.now()}.${ext}`;
