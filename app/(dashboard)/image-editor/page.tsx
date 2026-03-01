@@ -161,6 +161,7 @@ export default function ImageEditorPage() {
             resultBase64: result.resultBase64,
             resultMimeType: result.mimeType,
             prompt: result.derivedPrompt,
+            aiDerivedPrompt: true,
           });
         }
       }

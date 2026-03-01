@@ -12,6 +12,7 @@ import {
   CheckCircleIcon,
   BookmarkIcon,
   BookmarkCheckIcon,
+  BrainCircuitIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { downloadDataUrl } from "@/lib/utils";
@@ -162,9 +163,12 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
               />
 
               {isProcessing && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 backdrop-blur-sm">
-                  <LoaderIcon size={28} className="text-[#60a5fa] animate-spin" />
-                  <span className="text-xs text-white/70">Generiert mit Gemini…</span>
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/65 backdrop-blur-sm">
+                  <LoaderIcon size={26} className="text-[#60a5fa] animate-spin" />
+                  <div className="text-center space-y-1">
+                    <p className="text-xs font-medium text-white/80">Gemini arbeitet…</p>
+                    <p className="text-[10px] text-white/40">Stil analysieren → Bild bearbeiten</p>
+                  </div>
                 </div>
               )}
 
@@ -212,10 +216,21 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
 
           {/* Prompt input + save */}
           <div>
-            <label className="text-[11px] text-white/40 mb-2 block">Dein Prompt</label>
+            <div className="flex items-center gap-2 mb-2">
+              <label className="text-[11px] text-white/40">Dein Prompt</label>
+              {selected.aiDerivedPrompt && (
+                <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-[#1d4ed8]/15 text-[#60a5fa]/80 border border-[#1d4ed8]/20">
+                  <BrainCircuitIcon size={9} />
+                  KI analysiert
+                </span>
+              )}
+            </div>
             <textarea
               value={selected.prompt}
-              onChange={(e) => setPrompt(selected.id, e.target.value)}
+              onChange={(e) => {
+                setPrompt(selected.id, e.target.value);
+                if (selected.aiDerivedPrompt) updateImage(selected.id, { aiDerivedPrompt: false });
+              }}
               placeholder="Beschreibe wie das Bild bearbeitet werden soll..."
               rows={3}
               maxLength={2000}
