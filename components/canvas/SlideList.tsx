@@ -108,19 +108,19 @@ export function SlideList() {
               <span className="text-[8px] text-white/60">{idx + 1}</span>
             </div>
 
-            {/* Drag handle */}
-            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-50 transition-opacity cursor-grab active:cursor-grabbing">
+            {/* Drag handle – always visible on mobile (no hover), subtle on desktop */}
+            <div className="absolute bottom-1 left-1/2 -translate-x-1/2 opacity-30 md:opacity-0 md:group-hover:opacity-50 transition-opacity cursor-grab active:cursor-grabbing touch-none">
               <GripVerticalIcon size={12} className="text-white rotate-90" />
             </div>
 
-            {/* Actions */}
-            <div className="absolute top-1.5 right-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Actions – always visible on mobile */}
+            <div className="absolute top-1 right-1 flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   duplicateSlide(slide.id);
                 }}
-                className="w-5 h-5 rounded bg-black/70 border border-white/10 flex items-center justify-center hover:bg-[#1d4ed8]/30"
+                className="w-6 h-6 rounded bg-black/70 border border-white/10 flex items-center justify-center hover:bg-[#1d4ed8]/30 active:bg-[#1d4ed8]/30"
               >
                 <CopyIcon size={9} className="text-white" />
               </button>
@@ -130,7 +130,7 @@ export function SlideList() {
                     e.stopPropagation();
                     removeSlide(slide.id);
                   }}
-                  className="w-5 h-5 rounded bg-black/70 border border-white/10 flex items-center justify-center hover:bg-red-500/50"
+                  className="w-6 h-6 rounded bg-black/70 border border-white/10 flex items-center justify-center hover:bg-red-500/50 active:bg-red-500/50"
                 >
                   <Trash2Icon size={9} className="text-white" />
                 </button>

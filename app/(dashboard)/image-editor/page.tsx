@@ -18,7 +18,7 @@ type MobileTab = "images" | "prompt";
 
 const mobileTabs: { id: MobileTab; label: string; icon: React.ElementType }[] = [
   { id: "images", label: "Bilder", icon: ImageIcon },
-  { id: "prompt", label: "Prompt & Ergebnis", icon: SparklesIcon },
+  { id: "prompt", label: "Prompt", icon: SparklesIcon },
 ];
 
 export default function ImageEditorPage() {
@@ -253,40 +253,40 @@ export default function ImageEditorPage() {
           )}
         </div>
 
-        {/* Center: model toggle */}
-        <div className="flex items-center gap-1 p-0.5 rounded-xl border border-white/[0.08] bg-white/[0.03]">
+        {/* Center: model toggle – text always visible */}
+        <div className="flex items-center gap-0.5 p-0.5 rounded-xl border border-white/[0.08] bg-white/[0.03]">
           <button
             onClick={() => setSelectedModel("pro")}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all",
+              "flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[11px] font-medium transition-all min-h-[36px]",
               selectedModel === "pro"
                 ? "bg-white/[0.1] text-white border border-white/[0.12]"
                 : "text-white/40 hover:text-white/60"
             )}
           >
             <CrownIcon size={11} />
-            <span className="hidden sm:inline">Pro</span>
-            <span className="hidden lg:inline text-white/40 font-normal">· höchste Qualität</span>
+            Pro
+            <span className="hidden lg:inline text-white/30 font-normal text-[10px]">· Qualität</span>
           </button>
           <button
             onClick={() => setSelectedModel("flash")}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all",
+              "flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[11px] font-medium transition-all min-h-[36px]",
               selectedModel === "flash"
                 ? "bg-[#1d4ed8]/20 text-[#60a5fa] border border-[#1d4ed8]/30"
                 : "text-white/40 hover:text-white/60"
             )}
           >
             <ZapIcon size={11} />
-            <span className="hidden sm:inline">Flash</span>
-            <span className="hidden lg:inline text-white/40 font-normal">· schneller</span>
+            Flash
+            <span className="hidden lg:inline text-white/30 font-normal text-[10px]">· schnell</span>
           </button>
         </div>
 
         {/* Right: smart button + error */}
         <div className="flex items-center gap-2 flex-shrink-0">
           {smartError && (
-            <span className="text-[11px] text-red-400 max-w-[160px] truncate hidden sm:block">{smartError}</span>
+            <span className="text-[11px] text-red-400 max-w-[120px] truncate">{smartError}</span>
           )}
           {SmartButton}
         </div>
@@ -331,16 +331,16 @@ export default function ImageEditorPage() {
                 key={tab.id}
                 onClick={() => setMobileTab(tab.id)}
                 className={cn(
-                  "flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-all border-b-2 relative",
+                  "flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-all border-b-2 relative min-h-[50px]",
                   active
                     ? "text-[#60a5fa] border-[#1d4ed8]"
                     : "text-white/30 border-transparent"
                 )}
               >
-                <tab.icon size={16} />
+                <tab.icon size={18} />
                 {tab.label}
                 {badge !== null && (
-                  <span className="absolute top-1.5 right-4 text-[9px] bg-[#1d4ed8] text-white rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                  <span className="absolute top-1.5 right-3 text-[9px] bg-[#1d4ed8] text-white rounded-full w-4 h-4 flex items-center justify-center leading-none">
                     {badge}
                   </span>
                 )}

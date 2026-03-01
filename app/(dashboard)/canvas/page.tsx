@@ -244,7 +244,7 @@ function CanvasInner() {
 
       {/* Toolbar */}
       <div
-        className="px-4 py-2.5 border-b glass flex items-center gap-2 flex-shrink-0 relative z-10"
+        className="px-3 py-2 border-b glass flex items-center gap-1.5 flex-shrink-0 relative z-10"
         style={{ borderColor: "var(--glass-border)" }}
       >
         <input
@@ -261,21 +261,25 @@ function CanvasInner() {
           </span>
         )}
 
+        {/* Download – icon only on mobile, icon+text on desktop */}
         <button
           onClick={handleExport}
           disabled={exporting}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-white/10 text-xs text-white/50 hover:text-white transition-all disabled:opacity-40 flex-shrink-0"
+          title="Als ZIP exportieren"
+          className="flex items-center gap-1 px-2.5 py-2 rounded-lg border border-white/10 text-xs text-white/50 hover:text-white transition-all disabled:opacity-40 flex-shrink-0 min-h-[36px]"
         >
           {exporting ? <LoaderIcon size={12} className="animate-spin" /> : <DownloadIcon size={12} />}
-          <span className="hidden sm:inline">PNG</span>
+          <span className="hidden sm:inline">ZIP</span>
         </button>
 
+        {/* Vorlagen – visible on all screens; text hidden on mobile */}
         <button
-          onClick={() => { setTab("templates"); }}
-          className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-white/10 text-xs text-white/40 hover:text-white/70 transition-all flex-shrink-0"
+          onClick={() => { setTab("templates"); setMobileView("controls"); }}
+          title="Vorlagen"
+          className="flex items-center gap-1 px-2.5 py-2 rounded-lg border border-white/10 text-xs text-white/40 hover:text-white/70 transition-all flex-shrink-0 min-h-[36px]"
         >
           <LayoutTemplateIcon size={12} />
-          <span>Vorlagen</span>
+          <span className="hidden sm:inline">Vorlagen</span>
         </button>
 
         <button
@@ -364,28 +368,31 @@ function CanvasInner() {
         >
           {([
             { id: "preview" as MobileView, label: "Vorschau" },
-            { id: "slides" as MobileView, label: `Slides (${slides.length})` },
+            { id: "slides" as MobileView, label: `Slides`, badge: slides.length },
             { id: "controls" as MobileView, label: "Bearbeiten" },
           ]).map((v) => (
             <button
               key={v.id}
               onClick={() => setMobileView(v.id)}
               className={cn(
-                "flex-1 py-2.5 text-[11px] font-medium transition-colors border-b-2",
+                "flex-1 flex items-center justify-center gap-1 py-2.5 text-[11px] font-medium transition-colors border-b-2 min-h-[44px]",
                 mobileView === v.id ? "text-[#60a5fa] border-[#1d4ed8]" : "text-white/30 border-transparent"
               )}
             >
               {v.label}
+              {"badge" in v && (
+                <span className="text-[9px] px-1 py-0.5 rounded-full bg-white/10 text-white/40">{v.badge}</span>
+              )}
             </button>
           ))}
         </div>
 
         <div className="flex-1 overflow-hidden">
           {mobileView === "preview" && (
-            <div className="h-full overflow-auto flex items-center justify-center p-6">
+            <div className="h-full overflow-auto flex items-center justify-center p-4">
               {selectedSlide ? (
                 <div
-                  className="w-full max-w-[340px] rounded-2xl overflow-hidden shadow-2xl"
+                  className="w-full max-w-[min(340px,calc(100vw-32px))] rounded-2xl overflow-hidden shadow-2xl"
                   style={{ boxShadow: "0 0 40px rgba(29, 78, 216,0.2), 0 0 0 1px rgba(255,255,255,0.05)" }}
                 >
                   <SlidePreview
