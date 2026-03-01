@@ -313,7 +313,38 @@ export async function POST(req: NextRequest) {
 
     const zipUint8 = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
 
-    // ── 4. Return ZIP directly (no DB save) ───────────────────────────────
+    // ── 4. Log request to DB (non-blocking, never fails the request) ──────
+    try {
+      const db = getDb();
+      const reqId = nanoid();
+      // Resolve human-readable template title
+      let tTitle: string | null = null;
+      if (typeof title === "string" && title.trim()) {
+        tTitle = title.trim();
+      } else if (!getBuiltinTemplate(templateId)) {
+        // Try to get title from DB (carousel was already loaded above, but we don't have it here)
+        // Just skip – not critical
+      }
+      await db.from("OpenlawRequest").insert({
+        id: reqId,
+        templateId,
+        templateTitle: tTitle,
+        title: safeTitle,
+        slideCount: finalSlides.length,
+        requestBody: {
+          tag: tag ?? null,
+          body: bodyText ?? null,
+          slides: slideOverrides ?? null,
+          textOverrides: textOverrides.length > 0 ? textOverrides : null,
+          grainIntensity,
+        },
+        userId: SYSTEM_USER_ID,
+      });
+    } catch (logErr) {
+      console.warn("[openclaw] Failed to log request:", logErr);
+    }
+
+    // ── 5. Return ZIP directly (no DB save) ───────────────────────────────
     return new Response(zipUint8.buffer as ArrayBuffer, {
       status: 200,
       headers: {

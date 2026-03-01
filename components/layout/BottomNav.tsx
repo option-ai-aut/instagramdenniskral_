@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ImageIcon, LayoutIcon, ClockIcon, LogOutIcon } from "lucide-react";
+import { ImageIcon, LayoutIcon, ClockIcon, LogOutIcon, ListIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/image-editor", icon: ImageIcon, label: "Editor" },
-  { href: "/canvas", icon: LayoutIcon, label: "Canvas" },
-  { href: "/history", icon: ClockIcon, label: "History" },
+  { href: "/image-editor", icon: ImageIcon,  label: "Editor" },
+  { href: "/canvas",       icon: LayoutIcon, label: "Canvas" },
+  { href: "/requests",     icon: ListIcon,   label: "Requests" },
+  { href: "/history",      icon: ClockIcon,  label: "History" },
 ];
 
 export function BottomNav() {

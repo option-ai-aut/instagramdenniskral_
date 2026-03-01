@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ImageIcon, LayoutIcon, ClockIcon, ZapIcon, LogOutIcon, BookOpenIcon } from "lucide-react";
+import { ImageIcon, LayoutIcon, ClockIcon, ZapIcon, LogOutIcon, BookOpenIcon, ListIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/image-editor", icon: ImageIcon, label: "Image Editor", description: "KI-Bildbearbeitung" },
-  { href: "/canvas", icon: LayoutIcon, label: "Canvas", description: "Karussell-Editor" },
-  { href: "/history", icon: ClockIcon, label: "History", description: "Alle Erstellungen" },
-  { href: "/api-docs", icon: BookOpenIcon, label: "API Docs", description: "Openclaw Integration" },
+  { href: "/image-editor", icon: ImageIcon,    label: "Image Editor", description: "KI-Bildbearbeitung" },
+  { href: "/canvas",       icon: LayoutIcon,   label: "Canvas",       description: "Karussell-Editor" },
+  { href: "/requests",     icon: ListIcon,     label: "Requests",     description: "Openclaw API-Verlauf" },
+  { href: "/history",      icon: ClockIcon,    label: "History",      description: "Alle Erstellungen" },
+  { href: "/api-docs",     icon: BookOpenIcon, label: "API Docs",     description: "Openclaw Integration" },
 ];
 
 export function Sidebar() {
