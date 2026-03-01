@@ -1,37 +1,37 @@
 /**
+ * Openclaw Carousel API
+ *
+ * GET  /api/openclaw/carousels
+ *   Lists all saved carousels (templates Dennis created in the canvas editor).
+ *   Openclaw uses these IDs as templateId when generating posts.
+ *
  * POST /api/openclaw/carousels
+ *   Generates slide images from a template + text overrides.
+ *   Returns a ZIP file of all rendered PNGs directly – NO database entry is created.
  *
- * Creates a new carousel based on a template (builtin or saved) and
- * applies text overrides to the specified slide elements.
- *
- * Request body:
- * {
- *   templateId: string,          // builtin: "progress" | "tip" | "luxury"  OR  saved carousel ID
- *   title?: string,              // optional title for the new carousel
- *   textOverrides?: Array<{
- *     slideIndex: number,        // 0-based slide index
- *     elementType: string,       // "header" | "subtitle" | "body" | "tag"
- *     text: string               // new text content
- *   }>
- * }
- *
- * Returns:
- * {
- *   carouselId: string,
- *   title: string,
- *   slideCount: number,
- *   slides: [...],
- *   slideImageUrls: string[],    // PNG download URLs for each slide
- *   viewUrl: string              // Open in canvas editor
- * }
+ *   Body: {
+ *     templateId: string,          // builtin: "progress"|"tip"|"luxury"  OR saved carousel ID
+ *     title?: string,              // used as ZIP filename only
+ *     grainIntensity?: number,     // 0-100, grain texture strength (default 0)
+ *     textOverrides?: Array<{
+ *       slideIndex: number,
+ *       elementType: string,       // "header"|"subtitle"|"body"|"tag"
+ *       text: string
+ *     }>
+ *   }
+ *   Returns: application/zip  (slide-1.png, slide-2.png, ...)
  */
 import { NextRequest, NextResponse } from "next/server";
+import JSZip from "jszip";
 import { validateOpenclaw } from "@/lib/openclaw-auth";
-import { getDb, newId, now } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { SYSTEM_USER_ID } from "@/lib/auth";
+import { renderSlideToPng } from "@/lib/render-slide";
 import type { Slide, TextElement } from "@/store/canvasStore";
-
 import { nanoid } from "@/lib/nanoid";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
 // Built-in template definitions (mirrors canvasStore.ts – fonts are fixed per template)
 function getBuiltinTemplate(id: string): Slide[] | null {
@@ -79,6 +79,8 @@ function getBuiltinTemplate(id: string): Slide[] | null {
   return templates[id] ?? null;
 }
 
+// ── GET: list saved templates (carousels Dennis created in the editor) ─────────
+
 export async function GET(req: NextRequest) {
   const authError = validateOpenclaw(req);
   if (authError) return authError;
@@ -91,20 +93,17 @@ export async function GET(req: NextRequest) {
       .eq("userId", SYSTEM_USER_ID)
       .order("updatedAt", { ascending: false });
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://instagramdenniskral.vercel.app";
-
     return NextResponse.json({
-      carousels: (carousels ?? []).map((c) => {
+      templates: (carousels ?? []).map((c) => {
         const slides = Array.isArray(c.slidesJson) ? c.slidesJson : [];
         return {
-          ...c,
+          id: c.id,
+          title: c.title,
           slideCount: slides.length,
-          slideImageUrls: slides.map((_: unknown, i: number) =>
-            `${baseUrl}/api/openclaw/carousels/${c.id}/slides/${i}/image.png`
-          ),
-          viewUrl: `${baseUrl}/canvas?load=${c.id}`,
+          updatedAt: c.updatedAt,
         };
       }),
+      note: "Use any id as templateId in POST /api/openclaw/carousels to generate images.",
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
@@ -112,16 +111,19 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// ── POST: generate ZIP from template (no database write) ───────────────────────
+
 export async function POST(req: NextRequest) {
   const authError = validateOpenclaw(req);
   if (authError) return authError;
 
   try {
     const body = await req.json().catch(() => ({}));
-    const { templateId, title, textOverrides = [] } = body as {
+    const { templateId, title, textOverrides = [], grainIntensity = 0 } = body as {
       templateId: string;
       title?: string;
       textOverrides?: Array<{ slideIndex: number; elementType: string; text: string }>;
+      grainIntensity?: number;
     };
 
     if (!templateId) {
@@ -131,12 +133,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let slides: Slide[] | null = null;
+    // Clamp grain
+    const grain = Math.max(0, Math.min(100, Number(grainIntensity) || 0));
 
-    // Try builtin template first
-    slides = getBuiltinTemplate(templateId);
+    // ── 1. Load template ───────────────────────────────────────────────────────
+    let slides: Slide[] | null = getBuiltinTemplate(templateId);
 
-    // If not builtin, try loading from saved carousels
     if (!slides) {
       const db = getDb();
       const { data: carousel } = await db
@@ -155,66 +157,62 @@ export async function POST(req: NextRequest) {
       slides = Array.isArray(carousel.slidesJson) ? carousel.slidesJson : [];
     }
 
-    // Apply text overrides (immutable – avoids mutating template objects)
+    if (!slides || slides.length === 0) {
+      return NextResponse.json({ error: "Template has no slides." }, { status: 400 });
+    }
+
+    // ── 2. Apply text overrides (immutable, locked elements are skipped) ───────
     const overrides = Array.isArray(textOverrides) ? textOverrides : [];
     if (overrides.length > 0) {
       slides = slides.map((slide, idx) => {
         const slideOverrides = overrides.filter(
-          (o) => typeof o.slideIndex === "number" && o.slideIndex === idx && o.elementType && typeof o.text === "string"
+          (o) => typeof o.slideIndex === "number" && o.slideIndex === idx &&
+                 o.elementType && typeof o.text === "string"
         );
         if (slideOverrides.length === 0) return slide;
         return {
           ...slide,
           elements: (slide.elements as TextElement[]).map((el) => {
             const override = slideOverrides.find((o) => o.elementType === el.type);
-                // Locked elements are anchored – textOverrides cannot change them
-                return (override && !el.locked) ? { ...el, text: override.text.slice(0, 500) } : el;
+            return (override && !el.locked)
+              ? { ...el, text: override.text.slice(0, 500) }
+              : el;
           }),
         };
       });
     }
 
-    // Generate IDs for all slides/elements
-    const finalSlides = slides.map((sl) => ({
+    // Assign fresh IDs so the template objects are not mutated
+    const finalSlides: Slide[] = slides.map((sl) => ({
       ...sl,
       id: nanoid(),
       elements: sl.elements.map((el) => ({ ...el, id: nanoid() })),
     }));
 
-    // Save to database
-    const carouselTitle = typeof title === "string" && title.trim()
-      ? title.trim().slice(0, 200)
-      : "Openclaw Carousel";
+    // ── 3. Render all slides to PNG via Satori ─────────────────────────────────
+    const zip = new JSZip();
+    const safeTitle = (typeof title === "string" && title.trim()
+      ? title.trim()
+      : "carousel"
+    ).replace(/[^a-z0-9_\-]/gi, "-").toLowerCase();
 
-    const ts = now();
-    const db = getDb();
-    await db.from("User").upsert({ id: SYSTEM_USER_ID, email: "dennis@denniskral.com" }, { onConflict: "id" });
+    for (let i = 0; i < finalSlides.length; i++) {
+      const buffer = await renderSlideToPng(finalSlides[i], grain);
+      zip.file(`${safeTitle}-slide-${i + 1}.png`, buffer);
+    }
 
-    const { data: carousel, error } = await db
-      .from("Carousel")
-      .insert({ id: newId(), userId: SYSTEM_USER_ID, title: carouselTitle, slidesJson: finalSlides, createdAt: ts, updatedAt: ts })
-      .select()
-      .single();
+    const zipUint8 = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
 
-    if (error) throw new Error(error.message);
-
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://instagramdenniskral.vercel.app";
-    const slideImageUrls = finalSlides.map((_: unknown, i: number) =>
-      `${baseUrl}/api/openclaw/carousels/${carousel.id}/slides/${i}/image.png`
-    );
-
-    return NextResponse.json({
-      carouselId: carousel.id,
-      title: carousel.title,
-      slideCount: finalSlides.length,
-      slideImageUrls,
-      viewUrl: `${baseUrl}/canvas?load=${carousel.id}`,
-      slides: finalSlides.map((sl, i) => ({
-        slideIndex: i,
-        downloadUrl: slideImageUrls[i],
-        elements: sl.elements.map((el: TextElement) => ({ type: el.type, text: el.text })),
-      })),
-    }, { status: 201 });
+    // ── 4. Return ZIP directly (no DB save) ───────────────────────────────────
+    return new Response(zipUint8.buffer as ArrayBuffer, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/zip",
+        "Content-Disposition": `attachment; filename="${safeTitle}.zip"`,
+        "X-Slide-Count": String(finalSlides.length),
+        "Cache-Control": "no-store",
+      },
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("POST /api/openclaw/carousels error:", message);

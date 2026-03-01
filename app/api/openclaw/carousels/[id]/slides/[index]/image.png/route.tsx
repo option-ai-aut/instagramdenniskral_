@@ -1,8 +1,10 @@
 /**
  * GET /api/openclaw/carousels/:id/slides/:index/image.png
- * Renders a single carousel slide as PNG (Satori / next/og).
+ * Renders a single slide of a saved carousel template as PNG.
+ * Requires Openclaw API key.
  */
 import { NextRequest } from "next/server";
+import { validateOpenclaw } from "@/lib/openclaw-auth";
 import { getDb } from "@/lib/db";
 import { SYSTEM_USER_ID } from "@/lib/auth";
 import { renderSlideToPng } from "@/lib/render-slide";
@@ -12,9 +14,12 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string; index: string }> }
 ) {
+  const authError = validateOpenclaw(req);
+  if (authError) return authError;
+
   const { id, index } = await params;
   const slideIndex = parseInt(index, 10);
 
