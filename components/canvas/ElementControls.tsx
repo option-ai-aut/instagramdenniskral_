@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Trash2Icon, PlusIcon, ChevronDownIcon, TypeIcon, LockIcon, LockOpenIcon, AlignStartVertical, AlignCenterVertical, AlignEndVertical } from "lucide-react";
+import { Trash2Icon, PlusIcon, ChevronDownIcon, TypeIcon, LockIcon, LockOpenIcon, AlignStartVertical, AlignCenterVertical, AlignEndVertical, CopyCheckIcon } from "lucide-react";
 import { useCanvasStore, type TextElement } from "@/store/canvasStore";
 import { DISPLAY_FONTS, BODY_FONTS } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
@@ -195,6 +195,7 @@ export function ElementControls() {
   const {
     slides, selectedSlideId, selectedElementId,
     updateElement, removeElement, addElement, selectElement,
+    findSiblings, syncToSiblings,
   } = useCanvasStore();
 
   const slide = slides.find((s) => s.id === selectedSlideId);
@@ -205,6 +206,21 @@ export function ElementControls() {
   useEffect(() => {
     setLocalText(element?.text ?? "");
   }, [element?.id]); // only sync when element SELECTION changes, not on every text update
+
+  // Sibling detection: recalculate whenever slides or selected element changes
+  const siblings = selectedSlideId && selectedElementId
+    ? findSiblings(selectedSlideId, selectedElementId)
+    : [];
+
+  const [syncDone, setSyncDone] = useState(false);
+  useEffect(() => { setSyncDone(false); }, [selectedElementId]);
+
+  const handleSync = useCallback((includeText: boolean) => {
+    if (!selectedSlideId || !selectedElementId) return;
+    syncToSiblings(selectedSlideId, selectedElementId, includeText);
+    setSyncDone(true);
+    setTimeout(() => setSyncDone(false), 2500);
+  }, [selectedSlideId, selectedElementId, syncToSiblings]);
 
   const update = useCallback((patch: Partial<TextElement>) => {
     if (!selectedSlideId || !selectedElementId) return;
@@ -244,6 +260,39 @@ export function ElementControls() {
         {element && (
           <>
             <div className="h-px" style={{ background: "var(--glass-border)" }} />
+
+            {/* ── Sibling-sync banner ── */}
+            {siblings.length > 0 && (
+              <div
+                className="rounded-xl border p-3 space-y-2"
+                style={{ borderColor: "rgba(96,165,250,0.2)", background: "rgba(29,78,216,0.07)" }}
+              >
+                <div className="flex items-center gap-2">
+                  <CopyCheckIcon size={12} className="text-[#60a5fa] flex-shrink-0" />
+                  <p className="text-[11px] text-[#60a5fa]/90 leading-tight">
+                    Gleiches Element auf <strong>{siblings.length}</strong> anderen Slide{siblings.length !== 1 ? "s" : ""} erkannt
+                  </p>
+                </div>
+                {syncDone ? (
+                  <p className="text-[10px] text-[#34d399] text-center">✓ Auf alle Slides angewendet</p>
+                ) : (
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => handleSync(true)}
+                      className="flex-1 py-1.5 rounded-lg text-[10px] font-medium text-white bg-[#1d4ed8]/70 hover:bg-[#1d4ed8] transition-all"
+                    >
+                      Text + Stil
+                    </button>
+                    <button
+                      onClick={() => handleSync(false)}
+                      className="flex-1 py-1.5 rounded-lg text-[10px] font-medium text-[#60a5fa] border border-[#1d4ed8]/30 hover:border-[#1d4ed8]/60 transition-all"
+                    >
+                      Nur Stil
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Text */}
             <div>

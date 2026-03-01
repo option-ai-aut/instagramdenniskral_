@@ -134,6 +134,16 @@ type CanvasStore = {
   loadCarousel: (id: string, title: string, slides: Slide[]) => void;
   newCarousel: () => void;
   reorderSlides: (from: number, to: number) => void;
+  /**
+   * Find elements on OTHER slides that are "siblings" of the given element:
+   * same type AND same Y position (within ±3%).
+   */
+  findSiblings: (slideId: string, elementId: string) => Array<{ slideId: string; elementId: string; slideIndex: number }>;
+  /**
+   * Copy the source element's properties to all its siblings.
+   * @param includeText  true → copy text too;  false → only style/position props
+   */
+  syncToSiblings: (slideId: string, elementId: string, includeText: boolean) => void;
 };
 
 export const useCanvasStore = create<CanvasStore>((set, get) => {
@@ -289,5 +299,55 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         slides.splice(to, 0, moved);
         return { slides };
       }),
+
+    findSiblings: (slideId, elementId) => {
+      const { slides } = get();
+      const sourceSlide = slides.find((sl) => sl.id === slideId);
+      const sourceEl = sourceSlide?.elements.find((el) => el.id === elementId) as TextElement | undefined;
+      if (!sourceEl) return [];
+
+      const results: Array<{ slideId: string; elementId: string; slideIndex: number }> = [];
+      slides.forEach((sl, idx) => {
+        if (sl.id === slideId) return; // skip source slide
+        (sl.elements as TextElement[]).forEach((el) => {
+          if (
+            el.type === sourceEl.type &&
+            Math.abs((el.y ?? 50) - (sourceEl.y ?? 50)) <= 3
+          ) {
+            results.push({ slideId: sl.id, elementId: el.id, slideIndex: idx });
+          }
+        });
+      });
+      return results;
+    },
+
+    syncToSiblings: (slideId, elementId, includeText) => {
+      const { slides, findSiblings } = get();
+      const sourceSlide = slides.find((sl) => sl.id === slideId);
+      const sourceEl = sourceSlide?.elements.find((el) => el.id === elementId) as TextElement | undefined;
+      if (!sourceEl) return;
+
+      const siblings = findSiblings(slideId, elementId);
+      if (siblings.length === 0) return;
+
+      // Build the patch: all props except id (and text if !includeText)
+      const { id: _id, text: _text, ...stylePatch } = sourceEl;
+      const patch: Partial<TextElement> = includeText
+        ? { ...stylePatch, text: sourceEl.text }
+        : stylePatch;
+
+      set((s) => ({
+        slides: s.slides.map((sl) => {
+          const sibling = siblings.find((sb) => sb.slideId === sl.id);
+          if (!sibling) return sl;
+          return {
+            ...sl,
+            elements: (sl.elements as TextElement[]).map((el) =>
+              el.id === sibling.elementId ? { ...el, ...patch } : el
+            ),
+          };
+        }),
+      }));
+    },
   };
 });
