@@ -68,6 +68,8 @@ Falls `OPENCLAW_API_KEY` nicht konfiguriert ist → `503 Service Unavailable`.
 
 ```typescript
 // Korrekte Verwendung via @google/genai SDK
+import { GoogleGenAI, Modality } from "@google/genai";
+
 const response = await ai.models.generateContent({
   model: "gemini-3-pro-image-preview",
   contents: [{
@@ -78,13 +80,14 @@ const response = await ai.models.generateContent({
     ]
   }],
   config: {
+    responseModalities: [Modality.IMAGE, Modality.TEXT], // PFLICHT – ohne das kein Bild in der Antwort
     imageConfig: { imageSize: "1K" }  // "1K" | "2K" | "4K"
   }
 });
 // Antwort: candidates[0].content.parts[].inlineData.data (base64 PNG)
 ```
 
-> **Wichtig:** Kein `responseModalities` nötig – `gemini-3-pro-image-preview` gibt immer ein Bild zurück.  
+> **Wichtig:** `responseModalities: [Modality.IMAGE, Modality.TEXT]` ist **zwingend erforderlich** – ohne diesen Parameter gibt das Modell kein Bild zurück (→ 500 Fehler).  
 > Das alte Modell `gemini-2.0-flash-preview-image-generation` wurde am 31.10.2025 abgeschaltet.
 
 ### Gemini Text / Thinking – API-Format
