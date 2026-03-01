@@ -54,8 +54,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, resultBase64: result.base64, mimeType: result.mimeType });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Generate error:", message);
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.error("Generate error:", message, stack);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

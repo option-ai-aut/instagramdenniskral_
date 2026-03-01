@@ -1,4 +1,4 @@
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel, Modality } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY! });
 
@@ -33,8 +33,8 @@ export async function editImageWithGemini(
       },
     ],
     config: {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      imageConfig: { imageSize } as any,
+      responseModalities: [Modality.IMAGE, Modality.TEXT],
+      imageConfig: { imageSize },
     },
   });
 
