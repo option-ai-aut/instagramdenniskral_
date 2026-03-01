@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, now } from "@/lib/db";
-import { editImageWithGemini } from "@/lib/gemini";
+import { editImageWithGemini, IMAGE_MODEL_PRO, IMAGE_MODEL_FLASH } from "@/lib/gemini";
 import { uploadBase64ToSupabase } from "@/lib/supabase";
 import { requireAuth, SYSTEM_USER_ID } from "@/lib/auth";
+
+const ALLOWED_IMAGE_MODELS = [IMAGE_MODEL_PRO, IMAGE_MODEL_FLASH] as const;
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,7 +14,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { imageItemId, imageBase64, mimeType, prompt } = await req.json();
+    const { imageItemId, imageBase64, mimeType, prompt, model: modelParam } = await req.json();
+    const model = ALLOWED_IMAGE_MODELS.includes(modelParam) ? modelParam : IMAGE_MODEL_PRO;
 
     if (!imageItemId || !imageBase64 || !prompt) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
@@ -37,7 +40,7 @@ export async function POST(req: NextRequest) {
         .eq("id", imageItemId);
     }
 
-    const result = await editImageWithGemini(imageBase64, mimeType ?? "image/jpeg", prompt);
+    const result = await editImageWithGemini(imageBase64, mimeType ?? "image/jpeg", prompt, "1K", model);
 
     if (isRealDbId) {
       try {

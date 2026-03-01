@@ -2,8 +2,11 @@ import { GoogleGenAI, ThinkingLevel, Modality } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY! });
 
-/** Image editing model – gemini-3-pro-image-preview (Nano Banana Pro) */
-export const IMAGE_MODEL = "gemini-3-pro-image-preview";
+/** Image editing models */
+export const IMAGE_MODEL_PRO   = "gemini-3-pro-image-preview";        // Pro  – höchste Qualität
+export const IMAGE_MODEL_FLASH = "gemini-3.1-flash-image-preview";    // Flash – schneller & günstiger
+/** Default image model (Pro) */
+export const IMAGE_MODEL = IMAGE_MODEL_PRO;
 
 /** Text / reasoning / prompt-writing model */
 export const TEXT_MODEL = "gemini-3.1-pro-preview";
@@ -19,10 +22,11 @@ export async function editImageWithGemini(
   imageBase64: string,
   mimeType: string,
   prompt: string,
-  imageSize: "1K" | "2K" | "4K" = "1K"
+  imageSize: "1K" | "2K" | "4K" = "1K",
+  model: string = IMAGE_MODEL
 ): Promise<{ base64: string; mimeType: string }> {
   const response = await ai.models.generateContent({
-    model: IMAGE_MODEL,
+    model,
     contents: [
       {
         role: "user",

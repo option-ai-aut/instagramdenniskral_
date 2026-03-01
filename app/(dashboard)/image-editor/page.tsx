@@ -6,7 +6,13 @@ import { PromptPanel } from "@/components/image-editor/PromptPanel";
 import { useImageEditorStore } from "@/store/imageEditorStore";
 import { base64ToDataUrl } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { ImageIcon, SparklesIcon, BrainCircuitIcon, LoaderIcon } from "lucide-react";
+import { ImageIcon, SparklesIcon, BrainCircuitIcon, LoaderIcon, ZapIcon, CrownIcon } from "lucide-react";
+
+type ImageModel = "pro" | "flash";
+const MODEL_IDS: Record<ImageModel, string> = {
+  pro:   "gemini-3-pro-image-preview",
+  flash: "gemini-3.1-flash-image-preview",
+};
 
 type MobileTab = "images" | "prompt";
 
@@ -23,6 +29,7 @@ export default function ImageEditorPage() {
   const [smartLoading, setSmartLoading] = useState(false);
   const [smartError, setSmartError] = useState<string | null>(null);
   const [savedPromptsCount, setSavedPromptsCount] = useState<number | null>(null);
+  const [selectedModel, setSelectedModel] = useState<ImageModel>("pro");
 
   useEffect(() => {
     if (initDone.current) return;
@@ -79,6 +86,7 @@ export default function ImageEditorPage() {
           imageBase64: img.originalBase64,
           mimeType: img.mimeType,
           prompt: img.prompt,
+          model: MODEL_IDS[selectedModel],
         }),
       });
 
@@ -135,6 +143,7 @@ export default function ImageEditorPage() {
             imageItemId: img.dbId ?? `temp-${img.id}`,
           })),
           savedPrompts: savedPromptTexts,
+          model: MODEL_IDS[selectedModel],
         }),
       });
 
@@ -229,12 +238,13 @@ export default function ImageEditorPage() {
     <div className="flex flex-col h-full bg-grid">
       <div className="absolute inset-0 bg-gradient-to-br from-[#1d4ed8]/[0.03] via-transparent to-transparent pointer-events-none" />
 
-      {/* Top bar with smart generate button */}
+      {/* Top bar */}
       <div
-        className="relative z-10 flex-shrink-0 flex items-center justify-between px-5 py-3 border-b"
+        className="relative z-10 flex-shrink-0 flex items-center justify-between px-5 py-3 border-b gap-3"
         style={{ background: "rgba(17,17,24,0.8)", borderColor: "var(--glass-border)" }}
       >
-        <div className="flex items-center gap-2">
+        {/* Left: title */}
+        <div className="flex items-center gap-2 flex-shrink-0">
           <h1 className="text-sm font-semibold text-white/80">Image Editor</h1>
           {hasImages && (
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-white/40">
@@ -242,9 +252,41 @@ export default function ImageEditorPage() {
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+
+        {/* Center: model toggle */}
+        <div className="flex items-center gap-1 p-0.5 rounded-xl border border-white/[0.08] bg-white/[0.03]">
+          <button
+            onClick={() => setSelectedModel("pro")}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all",
+              selectedModel === "pro"
+                ? "bg-white/[0.1] text-white border border-white/[0.12]"
+                : "text-white/40 hover:text-white/60"
+            )}
+          >
+            <CrownIcon size={11} />
+            <span className="hidden sm:inline">Pro</span>
+            <span className="hidden lg:inline text-white/40 font-normal">· höchste Qualität</span>
+          </button>
+          <button
+            onClick={() => setSelectedModel("flash")}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all",
+              selectedModel === "flash"
+                ? "bg-[#1d4ed8]/20 text-[#60a5fa] border border-[#1d4ed8]/30"
+                : "text-white/40 hover:text-white/60"
+            )}
+          >
+            <ZapIcon size={11} />
+            <span className="hidden sm:inline">Flash</span>
+            <span className="hidden lg:inline text-white/40 font-normal">· schneller</span>
+          </button>
+        </div>
+
+        {/* Right: smart button + error */}
+        <div className="flex items-center gap-2 flex-shrink-0">
           {smartError && (
-            <span className="text-[11px] text-red-400 max-w-[200px] truncate">{smartError}</span>
+            <span className="text-[11px] text-red-400 max-w-[160px] truncate hidden sm:block">{smartError}</span>
           )}
           {SmartButton}
         </div>

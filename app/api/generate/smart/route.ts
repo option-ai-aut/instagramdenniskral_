@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, now } from "@/lib/db";
-import { editImageWithGemini, generateTextWithGemini } from "@/lib/gemini";
+import { editImageWithGemini, generateTextWithGemini, IMAGE_MODEL_PRO, IMAGE_MODEL_FLASH } from "@/lib/gemini";
 import { uploadBase64ToSupabase } from "@/lib/supabase";
 import { requireAuth, SYSTEM_USER_ID } from "@/lib/auth";
+
+const ALLOWED_IMAGE_MODELS = [IMAGE_MODEL_PRO, IMAGE_MODEL_FLASH] as const;
 
 type ImageInput = {
   imageBase64: string;
@@ -46,7 +48,8 @@ async function derivePromptForImage(
  */
 async function processImage(
   img: ImageInput,
-  savedPrompts: string[]
+  savedPrompts: string[],
+  model: string = IMAGE_MODEL_PRO
 ): Promise<
   | { imageItemId: string; resultBase64: string; mimeType: string; derivedPrompt: string; error?: undefined }
   | { imageItemId: string; error: string }
@@ -55,8 +58,8 @@ async function processImage(
     // Step 1: derive a custom prompt for this specific image
     const derivedPrompt = await derivePromptForImage(img.imageBase64, img.mimeType, savedPrompts);
 
-    // Step 2: edit the image
-    const result = await editImageWithGemini(img.imageBase64, img.mimeType, derivedPrompt);
+    // Step 2: edit the image with the selected model
+    const result = await editImageWithGemini(img.imageBase64, img.mimeType, derivedPrompt, "1K", model);
 
     const isRealDbId = !img.imageItemId.startsWith("temp-");
     const db = getDb();
@@ -94,10 +97,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { images, savedPrompts } = (await req.json()) as {
+    const { images, savedPrompts, model: modelParam } = (await req.json()) as {
       images: ImageInput[];
       savedPrompts: string[];
+      model?: string;
     };
+    const model = ALLOWED_IMAGE_MODELS.includes(modelParam as typeof ALLOWED_IMAGE_MODELS[number])
+      ? modelParam!
+      : IMAGE_MODEL_PRO;
 
     if (!Array.isArray(images) || images.length === 0) {
       return NextResponse.json({ error: "images array is required" }, { status: 400 });
@@ -121,7 +128,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const results = await Promise.all(images.map((img) => processImage(img, savedPrompts)));
+    const results = await Promise.all(images.map((img) => processImage(img, savedPrompts, model)));
 
     return NextResponse.json({ results });
   } catch (err) {
