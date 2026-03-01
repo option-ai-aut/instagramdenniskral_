@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 
 export type ImageStatus = "idle" | "processing" | "done" | "error";
 
@@ -33,7 +34,9 @@ type ImageEditorStore = {
   clearAll: () => void;
 };
 
-export const useImageEditorStore = create<ImageEditorStore>((set) => ({
+export const useImageEditorStore = create<ImageEditorStore>()(
+  persist(
+    (set) => ({
   sessionId: null,
   images: [],
   selectedId: null,
@@ -94,4 +97,33 @@ export const useImageEditorStore = create<ImageEditorStore>((set) => ({
     })),
 
   clearAll: () => set({ images: [], selectedId: null, sessionId: null }),
-}));
+}),
+    {
+      name: "image-editor-store-v1",
+      storage: createJSONStorage(() => localStorage),
+      // Persist metadata + base64 for full restore
+      // Base64 images can be large, so we cap at 20 images × ~500KB = ~10MB
+      // localStorage limit is typically 5-10MB, so we only persist if total is reasonable
+      partialize: (state) => ({
+        sessionId:  state.sessionId,
+        selectedId: state.selectedId,
+        images: state.images.map((img) => ({
+          id:              img.id,
+          dbId:            img.dbId,
+          sessionId:       img.sessionId,
+          originalDataUrl: img.originalDataUrl,
+          originalBase64:  img.originalBase64,
+          mimeType:        img.mimeType,
+          resultDataUrl:   img.resultDataUrl,
+          resultBase64:    img.resultBase64,
+          resultMimeType:  img.resultMimeType,
+          prompt:          img.prompt,
+          aiDerivedPrompt: img.aiDerivedPrompt,
+          status:          img.status === "processing" ? "idle" : img.status,
+          error:           img.error,
+          // file is not serializable – excluded intentionally
+        })),
+      }),
+    }
+  )
+);

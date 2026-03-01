@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { nanoid } from "@/lib/nanoid";
 
 export type TextAlign = "left" | "center" | "right";
@@ -179,7 +180,9 @@ type CanvasStore = {
   syncToSiblings: (slideId: string, elementId: string, includeText: boolean) => void;
 };
 
-export const useCanvasStore = create<CanvasStore>((set, get) => {
+export const useCanvasStore = create<CanvasStore>()(
+  persist(
+    (set, get) => {
   const defaultSlide = makeDefaultSlide();
   return {
     slides: [defaultSlide],
@@ -409,4 +412,22 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
       }));
     },
   };
-});
+},
+    {
+      name: "canvas-store-v1",
+      storage: createJSONStorage(() => localStorage),
+      // Only persist UI state – exclude functions (auto-excluded by JSON.stringify)
+      partialize: (state) => ({
+        slides:            state.slides,
+        selectedSlideId:   state.selectedSlideId,
+        selectedElementId: state.selectedElementId,
+        carouselTitle:     state.carouselTitle,
+        savedCarouselId:   state.savedCarouselId,
+        grainIntensity:    state.grainIntensity,
+        grainSize:         state.grainSize,
+        grainDensity:      state.grainDensity,
+        grainSharpness:    state.grainSharpness,
+      }),
+    }
+  )
+);
