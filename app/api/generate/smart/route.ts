@@ -3,6 +3,7 @@ import { getDb, now } from "@/lib/db";
 import { editImageWithGemini, generateTextWithGemini, IMAGE_MODEL_PRO, IMAGE_MODEL_FLASH } from "@/lib/gemini";
 import { uploadBase64ToSupabase } from "@/lib/supabase";
 import { requireAuth, SYSTEM_USER_ID } from "@/lib/auth";
+import sharp from "sharp";
 
 export const runtime = "nodejs";
 export const maxDuration = 120; // Up to 20 images × 2 Gemini calls each can take 60–90s
@@ -62,9 +63,43 @@ async function processImage(
     // Step 1: derive a custom prompt for this specific image
     const derivedPrompt = await derivePromptForImage(img.imageBase64, img.mimeType, savedPrompts);
 
-    // Step 2: edit the image with the selected model
-    const safeRatio = typeof img.aspectRatio === "string" && img.aspectRatio.length <= 8 ? img.aspectRatio : "1:1";
-    const result = await editImageWithGemini(img.imageBase64, img.mimeType, derivedPrompt, "2K", model, safeRatio);
+    // Step 2: edit the image with the selected model (no aspectRatio → fast 15s generation)
+    let result = await editImageWithGemini(img.imageBase64, img.mimeType, derivedPrompt, "2K", model);
+
+    // Post-crop to preserve input aspect ratio (<100ms, doesn't slow Gemini)
+    const safeRatio = typeof img.aspectRatio === "string" && /^\d+:\d+$/.test(img.aspectRatio) ? img.aspectRatio : null;
+    if (safeRatio) {
+      try {
+        const [rw, rh] = safeRatio.split(":").map(Number);
+        if (rw > 0 && rh > 0) {
+          const outBuf = Buffer.from(result.base64, "base64");
+          const { width: outW = 0, height: outH = 0 } = await sharp(outBuf).metadata();
+          if (outW > 0 && outH > 0) {
+            const targetRatio = rw / rh;
+            const outRatio    = outW / outH;
+            if (Math.abs(targetRatio - outRatio) / targetRatio > 0.01) {
+              let cropW: number, cropH: number;
+              if (outW / targetRatio <= outH) {
+                cropW = outW;  cropH = Math.round(outW / targetRatio);
+              } else {
+                cropH = outH;  cropW = Math.round(outH * targetRatio);
+              }
+              const cropped = await sharp(outBuf)
+                .extract({
+                  left:   Math.floor((outW - cropW) / 2),
+                  top:    Math.floor((outH - cropH) / 2),
+                  width:  cropW,
+                  height: cropH,
+                })
+                .toBuffer();
+              result = { base64: cropped.toString("base64"), mimeType: result.mimeType };
+            }
+          }
+        }
+      } catch (cropErr) {
+        console.warn("[smart] Post-crop failed:", cropErr);
+      }
+    }
 
     const isRealDbId = !img.imageItemId.startsWith("temp-");
     const db = getDb();

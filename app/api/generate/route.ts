@@ -3,9 +3,10 @@ import { getDb, now } from "@/lib/db";
 import { editImageWithGemini, IMAGE_MODEL_PRO, IMAGE_MODEL_FLASH } from "@/lib/gemini";
 import { uploadBase64ToSupabase } from "@/lib/supabase";
 import { requireAuth, SYSTEM_USER_ID } from "@/lib/auth";
+import sharp from "sharp";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120; // Gemini Pro can take 30-50s; 120s gives ample buffer
 
 const ALLOWED_IMAGE_MODELS = [IMAGE_MODEL_PRO, IMAGE_MODEL_FLASH] as const;
 
@@ -19,7 +20,8 @@ export async function POST(req: NextRequest) {
   try {
     const { imageItemId, imageBase64, mimeType, prompt, model: modelParam, aspectRatio } = await req.json();
     const model = ALLOWED_IMAGE_MODELS.includes(modelParam) ? modelParam : IMAGE_MODEL_PRO;
-    const safeAspectRatio = typeof aspectRatio === "string" && aspectRatio.length <= 8 ? aspectRatio : "1:1";
+    // aspectRatio is used for post-crop only – never passed to Gemini (would 4× generation time)
+    const safeAspectRatio = typeof aspectRatio === "string" && /^\d+:\d+$/.test(aspectRatio) ? aspectRatio : null;
 
     if (!imageItemId || !imageBase64 || !prompt) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
@@ -44,7 +46,41 @@ export async function POST(req: NextRequest) {
         .eq("id", imageItemId);
     }
 
-    const result = await editImageWithGemini(imageBase64, mimeType ?? "image/jpeg", prompt, "2K", model, safeAspectRatio);
+    let result = await editImageWithGemini(imageBase64, mimeType ?? "image/jpeg", prompt, "2K", model);
+
+    // Post-crop to preserve input aspect ratio (fast <100ms, doesn't slow Gemini)
+    if (safeAspectRatio) {
+      try {
+        const [rw, rh] = safeAspectRatio.split(":").map(Number);
+        if (rw > 0 && rh > 0) {
+          const outBuf = Buffer.from(result.base64, "base64");
+          const { width: outW = 0, height: outH = 0 } = await sharp(outBuf).metadata();
+          if (outW > 0 && outH > 0) {
+            const targetRatio = rw / rh;
+            const outRatio    = outW / outH;
+            if (Math.abs(targetRatio - outRatio) / targetRatio > 0.01) {
+              let cropW: number, cropH: number;
+              if (outW / targetRatio <= outH) {
+                cropW = outW;  cropH = Math.round(outW / targetRatio);
+              } else {
+                cropH = outH;  cropW = Math.round(outH * targetRatio);
+              }
+              const cropped = await sharp(outBuf)
+                .extract({
+                  left:   Math.floor((outW - cropW) / 2),
+                  top:    Math.floor((outH - cropH) / 2),
+                  width:  cropW,
+                  height: cropH,
+                })
+                .toBuffer();
+              result = { base64: cropped.toString("base64"), mimeType: result.mimeType };
+            }
+          }
+        }
+      } catch (cropErr) {
+        console.warn("[generate] Post-crop failed, returning original:", cropErr);
+      }
+    }
 
     if (isRealDbId) {
       try {

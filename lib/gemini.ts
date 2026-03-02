@@ -23,10 +23,12 @@ export async function editImageWithGemini(
   mimeType: string,
   prompt: string,
   imageSize: "1K" | "2K" | "4K" = "2K",
-  model: string = IMAGE_MODEL,
-  /** Pre-computed aspect ratio string (e.g. "4:5"). Computed client-side to avoid server overhead. */
-  aspectRatio: string = "1:1"
+  model: string = IMAGE_MODEL
 ): Promise<{ base64: string; mimeType: string }> {
+  // NOTE: aspectRatio is intentionally NOT passed to Gemini imageConfig.
+  // Passing it doubles generation time (15s → 60s+) because the model must
+  // simultaneously generate content AND satisfy a strict ratio constraint.
+  // Instead, the caller crops the output to the desired ratio with sharp.
   const response = await ai.models.generateContent({
     model,
     contents: [
@@ -40,7 +42,7 @@ export async function editImageWithGemini(
     ],
     config: {
       responseModalities: [Modality.IMAGE, Modality.TEXT],
-      imageConfig: { imageSize, aspectRatio },
+      imageConfig: { imageSize },
     },
   });
 
