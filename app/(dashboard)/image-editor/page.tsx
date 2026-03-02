@@ -31,6 +31,24 @@ export default function ImageEditorPage() {
   const [savedPromptsCount, setSavedPromptsCount] = useState<number | null>(null);
   const [selectedModel, setSelectedModel] = useState<ImageModel>("pro");
 
+  // Track AbortControllers per image so we can cancel in-flight requests on unmount
+  const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
+
+  // On unmount (page navigation): abort all running requests and reset their status to idle
+  useEffect(() => {
+    return () => {
+      abortControllersRef.current.forEach((ctrl) => ctrl.abort());
+      abortControllersRef.current.clear();
+      // Reset any still-processing images to idle so they don't persist as errors
+      const { images: current } = useImageEditorStore.getState();
+      current.forEach((img) => {
+        if (img.status === "processing") {
+          useImageEditorStore.getState().updateImage(img.id, { status: "idle", error: undefined });
+        }
+      });
+    };
+  }, []);
+
   useEffect(() => {
     if (initDone.current) return;
     initDone.current = true;
@@ -62,6 +80,12 @@ export default function ImageEditorPage() {
     const img = images.find((i) => i.id === imageId);
     if (!img || !img.prompt.trim() || img.status === "processing") return;
 
+    // Cancel any previous in-flight request for this image
+    abortControllersRef.current.get(imageId)?.abort();
+    const controller = new AbortController();
+    abortControllersRef.current.set(imageId, controller);
+    const { signal } = controller;
+
     updateImage(imageId, { status: "processing", error: undefined });
 
     let dbId = img.dbId;
@@ -71,11 +95,13 @@ export default function ImageEditorPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ imageBase64: img.originalBase64, mimeType: img.mimeType }),
+          signal,
         });
         const { item } = await r.json();
         dbId = item?.id;
         updateImage(imageId, { dbId, sessionId, originalUrl: item?.originalUrl });
       } catch (e) {
+        if ((e as Error)?.name === "AbortError") return; // navigated away – cleanup handled by unmount effect
         console.error("Failed to save original:", e);
       }
     }
@@ -91,6 +117,7 @@ export default function ImageEditorPage() {
           prompt: img.prompt,
           model: MODEL_IDS[selectedModel],
         }),
+        signal,
       });
 
       if (!res.ok) {
@@ -102,10 +129,13 @@ export default function ImageEditorPage() {
       const resultDataUrl = base64ToDataUrl(resultBase64, mimeType);
 
       updateImage(imageId, { status: "done", resultDataUrl, resultBase64, resultMimeType: mimeType });
+      abortControllersRef.current.delete(imageId);
       setMobileTab("prompt");
     } catch (err) {
+      if ((err as Error)?.name === "AbortError") return; // navigated away – unmount effect resets to idle
       const message = err instanceof Error ? err.message : "Fehler";
       updateImage(imageId, { status: "error", error: message });
+      abortControllersRef.current.delete(imageId);
     }
   };
 
