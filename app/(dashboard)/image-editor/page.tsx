@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { ImageList } from "@/components/image-editor/ImageList";
 import { PromptPanel } from "@/components/image-editor/PromptPanel";
 import { useImageEditorStore } from "@/store/imageEditorStore";
-import { base64ToDataUrl, getImageAspectRatio } from "@/lib/utils";
+import { base64ToDataUrl, compressImage } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ImageIcon, SparklesIcon, BrainCircuitIcon, LoaderIcon, ZapIcon, CrownIcon } from "lucide-react";
 
@@ -88,11 +88,11 @@ export default function ImageEditorPage() {
 
     updateImage(imageId, { status: "processing", error: undefined });
 
-    // ── Re-fetch base64 from Supabase if missing (happens after page reload) ──
-    let imageBase64 = img.originalBase64;
-    let imageMimeType = img.mimeType;
+    // ── Resolve base64: from memory or re-fetch from Supabase after reload ──
+    let rawBase64 = img.originalBase64;
+    let rawMime   = img.mimeType;
 
-    if (!imageBase64) {
+    if (!rawBase64) {
       const srcUrl = img.originalUrl;
       if (!srcUrl) {
         updateImage(imageId, { status: "error", error: "Bild nicht verfügbar – bitte neu hochladen" });
@@ -101,18 +101,17 @@ export default function ImageEditorPage() {
       }
       try {
         const blob = await fetch(srcUrl, { signal }).then((r) => r.blob());
-        imageBase64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve((reader.result as string).split(",")[1]);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-        imageMimeType = blob.type || img.mimeType;
+        const objectUrl = URL.createObjectURL(blob);
+        const compressed = await compressImage(objectUrl).catch(() => null);
+        URL.revokeObjectURL(objectUrl);
+        if (!compressed) throw new Error("Komprimierung fehlgeschlagen");
+        rawBase64 = compressed.base64;
+        rawMime   = compressed.mimeType;
         // Restore in-memory so subsequent generates skip re-fetch
         updateImage(imageId, {
-          originalBase64: imageBase64,
-          originalDataUrl: `data:${imageMimeType};base64,${imageBase64}`,
-          mimeType: imageMimeType,
+          originalBase64:  rawBase64,
+          originalDataUrl: `data:${rawMime};base64,${rawBase64}`,
+          mimeType:        rawMime,
         });
       } catch (e) {
         if ((e as Error)?.name === "AbortError") return;
@@ -122,28 +121,37 @@ export default function ImageEditorPage() {
       }
     }
 
+    // ── Compress before sending (keeps payload < 3 MB, avoids Vercel 413) ──
+    let sendBase64 = rawBase64;
+    let sendMime   = rawMime;
+    let aspectRatio = "1:1";
+    try {
+      const src = img.originalDataUrl || `data:${rawMime};base64,${rawBase64}`;
+      const compressed = await compressImage(src);
+      sendBase64  = compressed.base64;
+      sendMime    = compressed.mimeType;
+      aspectRatio = compressed.aspectRatio;
+    } catch {
+      // Compression failed – fall back to original (might still 413 on huge images)
+    }
+
     let dbId = img.dbId;
     if (!dbId && sessionId) {
       try {
         const r = await fetch(`/api/sessions/${sessionId}/images`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64, mimeType: imageMimeType }),
+          body: JSON.stringify({ imageBase64: sendBase64, mimeType: sendMime }),
           signal,
         });
         const { item } = await r.json();
         dbId = item?.id;
         updateImage(imageId, { dbId, sessionId, originalUrl: item?.originalUrl });
       } catch (e) {
-        if ((e as Error)?.name === "AbortError") return; // navigated away – cleanup handled by unmount effect
+        if ((e as Error)?.name === "AbortError") return;
         console.error("Failed to save original:", e);
       }
     }
-
-    // Compute aspect ratio client-side (image already in memory → instant, no server overhead)
-    const aspectRatio = await getImageAspectRatio(
-      img.originalDataUrl || `data:${imageMimeType};base64,${imageBase64}`
-    ).catch(() => "1:1");
 
     try {
       const res = await fetch("/api/generate", {
@@ -151,10 +159,10 @@ export default function ImageEditorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imageItemId: dbId ?? `temp-${imageId}`,
-          imageBase64,
-          mimeType: imageMimeType,
-          prompt: img.prompt,
-          model: MODEL_IDS[selectedModel],
+          imageBase64: sendBase64,
+          mimeType:    sendMime,
+          prompt:      img.prompt,
+          model:       MODEL_IDS[selectedModel],
           aspectRatio,
         }),
         signal,
@@ -207,16 +215,20 @@ export default function ImageEditorPage() {
 
       const savedPromptTexts: string[] = prompts.map((p: { text: string }) => p.text);
 
-      // Compute aspect ratios client-side for all images before sending
+      // Compress all images client-side before sending (avoids 413, includes aspectRatio)
       const imageInputs = await Promise.all(
-        images.map(async (img) => ({
-          imageBase64: img.originalBase64,
-          mimeType: img.mimeType,
-          imageItemId: img.dbId ?? `temp-${img.id}`,
-          aspectRatio: img.originalDataUrl
-            ? await getImageAspectRatio(img.originalDataUrl).catch(() => "1:1")
-            : "1:1",
-        }))
+        images.map(async (img) => {
+          const src = img.originalDataUrl
+            ? img.originalDataUrl
+            : img.originalBase64 ? `data:${img.mimeType};base64,${img.originalBase64}` : null;
+          if (!src) return { imageBase64: img.originalBase64, mimeType: img.mimeType, imageItemId: img.dbId ?? `temp-${img.id}`, aspectRatio: "1:1" };
+          try {
+            const c = await compressImage(src);
+            return { imageBase64: c.base64, mimeType: c.mimeType, imageItemId: img.dbId ?? `temp-${img.id}`, aspectRatio: c.aspectRatio };
+          } catch {
+            return { imageBase64: img.originalBase64, mimeType: img.mimeType, imageItemId: img.dbId ?? `temp-${img.id}`, aspectRatio: "1:1" };
+          }
+        })
       );
 
       const res = await fetch("/api/generate/smart", {
