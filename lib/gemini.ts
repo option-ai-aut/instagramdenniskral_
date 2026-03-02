@@ -1,31 +1,4 @@
 import { GoogleGenAI, ThinkingLevel, Modality } from "@google/genai";
-import sharp from "sharp";
-
-/** Supported aspectRatio values per ImageConfig docs */
-const SUPPORTED_RATIOS: { ratio: number; str: string }[] = [
-  { ratio: 1 / 1,  str: "1:1"  },
-  { ratio: 2 / 3,  str: "2:3"  },
-  { ratio: 3 / 2,  str: "3:2"  },
-  { ratio: 3 / 4,  str: "3:4"  },
-  { ratio: 4 / 3,  str: "4:3"  },
-  { ratio: 4 / 5,  str: "4:5"  },
-  { ratio: 5 / 4,  str: "5:4"  },
-  { ratio: 9 / 16, str: "9:16" },
-  { ratio: 16 / 9, str: "16:9" },
-  { ratio: 21 / 9, str: "21:9" },
-];
-
-function nearestAspectRatio(w: number, h: number): string {
-  if (w <= 0 || h <= 0) return "1:1";
-  const r = w / h;
-  let best = SUPPORTED_RATIOS[0];
-  let bestDiff = Math.abs(r - best.ratio);
-  for (const candidate of SUPPORTED_RATIOS) {
-    const diff = Math.abs(r - candidate.ratio);
-    if (diff < bestDiff) { bestDiff = diff; best = candidate; }
-  }
-  return best.str;
-}
 
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY! });
 
@@ -50,17 +23,10 @@ export async function editImageWithGemini(
   mimeType: string,
   prompt: string,
   imageSize: "1K" | "2K" | "4K" = "2K",
-  model: string = IMAGE_MODEL
+  model: string = IMAGE_MODEL,
+  /** Pre-computed aspect ratio string (e.g. "4:5"). Computed client-side to avoid server overhead. */
+  aspectRatio: string = "1:1"
 ): Promise<{ base64: string; mimeType: string }> {
-  // Determine the input aspect ratio so Gemini returns the same format
-  let aspectRatio = "1:1";
-  try {
-    const { width = 0, height = 0 } = await sharp(Buffer.from(imageBase64, "base64")).metadata();
-    aspectRatio = nearestAspectRatio(width, height);
-  } catch {
-    // Fallback: let Gemini decide
-  }
-
   const response = await ai.models.generateContent({
     model,
     contents: [

@@ -17,8 +17,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { imageItemId, imageBase64, mimeType, prompt, model: modelParam } = await req.json();
+    const { imageItemId, imageBase64, mimeType, prompt, model: modelParam, aspectRatio } = await req.json();
     const model = ALLOWED_IMAGE_MODELS.includes(modelParam) ? modelParam : IMAGE_MODEL_PRO;
+    const safeAspectRatio = typeof aspectRatio === "string" && aspectRatio.length <= 8 ? aspectRatio : "1:1";
 
     if (!imageItemId || !imageBase64 || !prompt) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
         .eq("id", imageItemId);
     }
 
-    const result = await editImageWithGemini(imageBase64, mimeType ?? "image/jpeg", prompt, "2K", model);
+    const result = await editImageWithGemini(imageBase64, mimeType ?? "image/jpeg", prompt, "2K", model, safeAspectRatio);
 
     if (isRealDbId) {
       try {

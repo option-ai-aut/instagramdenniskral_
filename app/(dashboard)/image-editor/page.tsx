@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { ImageList } from "@/components/image-editor/ImageList";
 import { PromptPanel } from "@/components/image-editor/PromptPanel";
 import { useImageEditorStore } from "@/store/imageEditorStore";
-import { base64ToDataUrl } from "@/lib/utils";
+import { base64ToDataUrl, getImageAspectRatio } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ImageIcon, SparklesIcon, BrainCircuitIcon, LoaderIcon, ZapIcon, CrownIcon } from "lucide-react";
 
@@ -140,6 +140,11 @@ export default function ImageEditorPage() {
       }
     }
 
+    // Compute aspect ratio client-side (image already in memory → instant, no server overhead)
+    const aspectRatio = await getImageAspectRatio(
+      img.originalDataUrl || `data:${imageMimeType};base64,${imageBase64}`
+    ).catch(() => "1:1");
+
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -150,6 +155,7 @@ export default function ImageEditorPage() {
           mimeType: imageMimeType,
           prompt: img.prompt,
           model: MODEL_IDS[selectedModel],
+          aspectRatio,
         }),
         signal,
       });
@@ -201,15 +207,23 @@ export default function ImageEditorPage() {
 
       const savedPromptTexts: string[] = prompts.map((p: { text: string }) => p.text);
 
+      // Compute aspect ratios client-side for all images before sending
+      const imageInputs = await Promise.all(
+        images.map(async (img) => ({
+          imageBase64: img.originalBase64,
+          mimeType: img.mimeType,
+          imageItemId: img.dbId ?? `temp-${img.id}`,
+          aspectRatio: img.originalDataUrl
+            ? await getImageAspectRatio(img.originalDataUrl).catch(() => "1:1")
+            : "1:1",
+        }))
+      );
+
       const res = await fetch("/api/generate/smart", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          images: images.map((img) => ({
-            imageBase64: img.originalBase64,
-            mimeType: img.mimeType,
-            imageItemId: img.dbId ?? `temp-${img.id}`,
-          })),
+          images: imageInputs,
           savedPrompts: savedPromptTexts,
           model: MODEL_IDS[selectedModel],
         }),

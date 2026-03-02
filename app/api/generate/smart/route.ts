@@ -13,6 +13,7 @@ type ImageInput = {
   imageBase64: string;
   mimeType: string;
   imageItemId: string;
+  aspectRatio?: string;
 };
 
 /**
@@ -62,7 +63,8 @@ async function processImage(
     const derivedPrompt = await derivePromptForImage(img.imageBase64, img.mimeType, savedPrompts);
 
     // Step 2: edit the image with the selected model
-    const result = await editImageWithGemini(img.imageBase64, img.mimeType, derivedPrompt, "2K", model);
+    const safeRatio = typeof img.aspectRatio === "string" && img.aspectRatio.length <= 8 ? img.aspectRatio : "1:1";
+    const result = await editImageWithGemini(img.imageBase64, img.mimeType, derivedPrompt, "2K", model, safeRatio);
 
     const isRealDbId = !img.imageItemId.startsWith("temp-");
     const db = getDb();
