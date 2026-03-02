@@ -88,13 +88,47 @@ export default function ImageEditorPage() {
 
     updateImage(imageId, { status: "processing", error: undefined });
 
+    // ── Re-fetch base64 from Supabase if missing (happens after page reload) ──
+    let imageBase64 = img.originalBase64;
+    let imageMimeType = img.mimeType;
+
+    if (!imageBase64) {
+      const srcUrl = img.originalUrl;
+      if (!srcUrl) {
+        updateImage(imageId, { status: "error", error: "Bild nicht verfügbar – bitte neu hochladen" });
+        abortControllersRef.current.delete(imageId);
+        return;
+      }
+      try {
+        const blob = await fetch(srcUrl, { signal }).then((r) => r.blob());
+        imageBase64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve((reader.result as string).split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        imageMimeType = blob.type || img.mimeType;
+        // Restore in-memory so subsequent generates skip re-fetch
+        updateImage(imageId, {
+          originalBase64: imageBase64,
+          originalDataUrl: `data:${imageMimeType};base64,${imageBase64}`,
+          mimeType: imageMimeType,
+        });
+      } catch (e) {
+        if ((e as Error)?.name === "AbortError") return;
+        updateImage(imageId, { status: "error", error: "Bild konnte nicht geladen werden – bitte neu hochladen" });
+        abortControllersRef.current.delete(imageId);
+        return;
+      }
+    }
+
     let dbId = img.dbId;
     if (!dbId && sessionId) {
       try {
         const r = await fetch(`/api/sessions/${sessionId}/images`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64: img.originalBase64, mimeType: img.mimeType }),
+          body: JSON.stringify({ imageBase64, mimeType: imageMimeType }),
           signal,
         });
         const { item } = await r.json();
@@ -112,8 +146,8 @@ export default function ImageEditorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           imageItemId: dbId ?? `temp-${imageId}`,
-          imageBase64: img.originalBase64,
-          mimeType: img.mimeType,
+          imageBase64,
+          mimeType: imageMimeType,
           prompt: img.prompt,
           model: MODEL_IDS[selectedModel],
         }),
