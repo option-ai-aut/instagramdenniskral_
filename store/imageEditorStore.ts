@@ -137,11 +137,11 @@ export const useImageEditorStore = create<ImageEditorStore>()(
           resultMimeType:  img.resultMimeType,
           prompt:          img.prompt,
           aiDerivedPrompt: img.aiDerivedPrompt,
-          // Reset processing state on restore; base64 not restored → idle
-          status: (img.status === "processing" || !img.originalUrl)
+          // On restore: reset transient states (processing, error) to idle
+          status: (img.status === "processing" || img.status === "error" || !img.originalUrl)
             ? "idle"
             : img.status,
-          error: img.error,
+          error: undefined,
           // file, originalDataUrl, originalBase64, resultDataUrl, resultBase64
           // are intentionally excluded – too large for localStorage
         })),
