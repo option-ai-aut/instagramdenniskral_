@@ -4,6 +4,9 @@ import { editImageWithGemini, generateTextWithGemini, IMAGE_MODEL_PRO, IMAGE_MOD
 import { uploadBase64ToSupabase } from "@/lib/supabase";
 import { requireAuth, SYSTEM_USER_ID } from "@/lib/auth";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 const ALLOWED_IMAGE_MODELS = [IMAGE_MODEL_PRO, IMAGE_MODEL_FLASH] as const;
 
 type ImageInput = {
@@ -59,7 +62,7 @@ async function processImage(
     const derivedPrompt = await derivePromptForImage(img.imageBase64, img.mimeType, savedPrompts);
 
     // Step 2: edit the image with the selected model
-    const result = await editImageWithGemini(img.imageBase64, img.mimeType, derivedPrompt, "1K", model);
+    const result = await editImageWithGemini(img.imageBase64, img.mimeType, derivedPrompt, "2K", model);
 
     const isRealDbId = !img.imageItemId.startsWith("temp-");
     const db = getDb();

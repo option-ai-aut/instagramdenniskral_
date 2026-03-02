@@ -4,6 +4,9 @@ import { editImageWithGemini, IMAGE_MODEL_PRO, IMAGE_MODEL_FLASH } from "@/lib/g
 import { uploadBase64ToSupabase } from "@/lib/supabase";
 import { requireAuth, SYSTEM_USER_ID } from "@/lib/auth";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 const ALLOWED_IMAGE_MODELS = [IMAGE_MODEL_PRO, IMAGE_MODEL_FLASH] as const;
 
 export async function POST(req: NextRequest) {
@@ -40,7 +43,7 @@ export async function POST(req: NextRequest) {
         .eq("id", imageItemId);
     }
 
-    const result = await editImageWithGemini(imageBase64, mimeType ?? "image/jpeg", prompt, "1K", model);
+    const result = await editImageWithGemini(imageBase64, mimeType ?? "image/jpeg", prompt, "2K", model);
 
     if (isRealDbId) {
       try {

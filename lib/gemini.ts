@@ -22,7 +22,7 @@ export async function editImageWithGemini(
   imageBase64: string,
   mimeType: string,
   prompt: string,
-  imageSize: "1K" | "2K" | "4K" = "1K",
+  imageSize: "1K" | "2K" | "4K" = "2K",
   model: string = IMAGE_MODEL
 ): Promise<{ base64: string; mimeType: string }> {
   const response = await ai.models.generateContent({
