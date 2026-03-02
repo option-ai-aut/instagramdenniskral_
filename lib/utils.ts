@@ -41,3 +41,13 @@ export function downloadDataUrl(dataUrl: string, filename: string) {
   a.download = filename;
   a.click();
 }
+
+/** Returns a safe filename timestamp: "Insta Studio 2026-02-28 14-30" */
+export function studioFilename(suffix?: string): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const time = `${pad(now.getHours())}-${pad(now.getMinutes())}`;
+  const base = `Insta Studio ${date} ${time}`;
+  return suffix ? `${base} ${suffix}` : base;
+}

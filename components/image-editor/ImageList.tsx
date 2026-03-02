@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { XIcon, DownloadIcon } from "lucide-react";
-import { downloadDataUrl } from "@/lib/utils";
+import { downloadDataUrl, studioFilename } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useImageEditorStore, type EditorImage } from "@/store/imageEditorStore";
 import { ImageDropzone } from "./ImageDropzone";
@@ -129,7 +129,8 @@ function DesktopImageCard({ img, index, selected, onSelect, onRemove }: {
 }) {
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
-    downloadDataUrl(img.originalDataUrl, `original-${index + 1}.jpg`);
+    const ext = (img.mimeType ?? "image/jpeg").split("/")[1].replace("jpeg", "jpg");
+    downloadDataUrl(img.originalDataUrl, `${studioFilename(`Original ${index + 1}`)}.${ext}`);
   };
 
   return (
@@ -187,7 +188,8 @@ function MobileImageCard({ img, index, selected, onSelect, onRemove }: {
 }) {
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
-    downloadDataUrl(img.originalDataUrl, `original-${index + 1}.jpg`);
+    const ext = (img.mimeType ?? "image/jpeg").split("/")[1].replace("jpeg", "jpg");
+    downloadDataUrl(img.originalDataUrl, `${studioFilename(`Original ${index + 1}`)}.${ext}`);
   };
 
   return (

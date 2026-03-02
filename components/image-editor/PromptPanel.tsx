@@ -16,8 +16,7 @@ import {
   ImageIcon,
   WandSparklesIcon,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { downloadDataUrl } from "@/lib/utils";
+import { cn, downloadDataUrl, studioFilename } from "@/lib/utils";
 import { useImageEditorStore } from "@/store/imageEditorStore";
 
 type Props = {
@@ -118,7 +117,8 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
   const previewSrc = viewingOriginal ? originalSrc : (hasResult ? selected.resultDataUrl! : originalSrc);
 
   const handleDownload = () => {
-    downloadDataUrl(selected.resultDataUrl!, `denniskral_${selected.id}.png`);
+    const ext = (selected.resultMimeType ?? "image/png").split("/")[1].replace("jpeg", "jpg");
+    downloadDataUrl(selected.resultDataUrl!, `${studioFilename()}.${ext}`);
   };
 
   const isAlreadySaved = savedPrompts.some(
