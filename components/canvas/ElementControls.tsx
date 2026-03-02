@@ -195,7 +195,7 @@ export function ElementControls() {
   const {
     slides, selectedSlideId, selectedElementId,
     updateElement, removeElement, addElement, selectElement,
-    findSiblings, syncToSiblings,
+    findSiblings, syncToSiblings, syncToExplicitSiblings,
   } = useCanvasStore();
 
   const slide = slides.find((s) => s.id === selectedSlideId);
@@ -231,15 +231,29 @@ export function ElementControls() {
 
   const update = useCallback((patch: Partial<TextElement>) => {
     if (!selectedSlideId || !selectedElementId) return;
-    updateElement(selectedSlideId, selectedElementId, patch);
-    // Live-sync: propagate to siblings immediately after updating the source element
+
     if (syncMode !== "off") {
-      // Use setTimeout(0) so the store update is committed first
-      setTimeout(() => {
-        syncToSiblings(selectedSlideId, selectedElementId, syncMode === "text+style");
-      }, 0);
+      // Capture siblings BEFORE the update so that position changes (y) don't
+      // invalidate the sibling match – findSiblings compares Y values and would
+      // return empty results if called after a Y change.
+      const preSiblings = findSiblings(selectedSlideId, selectedElementId);
+      updateElement(selectedSlideId, selectedElementId, patch);
+      if (preSiblings.length > 0) {
+        // setTimeout(0): let the store commit the source update first, then
+        // read the updated source values and copy them to siblings.
+        setTimeout(() => {
+          syncToExplicitSiblings(
+            selectedSlideId,
+            selectedElementId,
+            preSiblings,
+            syncMode === "text+style"
+          );
+        }, 0);
+      }
+    } else {
+      updateElement(selectedSlideId, selectedElementId, patch);
     }
-  }, [selectedSlideId, selectedElementId, updateElement, syncMode, syncToSiblings]);
+  }, [selectedSlideId, selectedElementId, updateElement, syncMode, findSiblings, syncToExplicitSiblings]);
 
   return (
     <div className="flex flex-col h-full">

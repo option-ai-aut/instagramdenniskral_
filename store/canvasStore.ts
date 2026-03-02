@@ -176,14 +176,27 @@ type CanvasStore = {
   reorderSlides: (from: number, to: number) => void;
   /**
    * Find elements on OTHER slides that are "siblings" of the given element:
-   * same type AND same Y position (within ±3%).
+   * same type AND same Y position (within ±5%).
    */
   findSiblings: (slideId: string, elementId: string) => Array<{ slideId: string; elementId: string; slideIndex: number }>;
   /**
-   * Copy the source element's properties to all its siblings.
+   * Copy the source element's properties to all its siblings (found dynamically).
+   * NOTE: if position was just changed, use syncToExplicitSiblings instead so
+   * the sibling list is not invalidated by the position change.
    * @param includeText  true → copy text too;  false → only style/position props
    */
   syncToSiblings: (slideId: string, elementId: string, includeText: boolean) => void;
+  /**
+   * Like syncToSiblings but operates on a pre-computed sibling list.
+   * Use this when the source element's Y was just changed (so findSiblings
+   * would no longer match siblings at the old Y position).
+   */
+  syncToExplicitSiblings: (
+    slideId: string,
+    elementId: string,
+    siblings: Array<{ slideId: string; elementId: string }>,
+    includeText: boolean
+  ) => void;
 };
 
 export const useCanvasStore = create<CanvasStore>()(
@@ -380,7 +393,7 @@ export const useCanvasStore = create<CanvasStore>()(
         (sl.elements as TextElement[]).forEach((el) => {
           if (
             el.type === sourceEl.type &&
-            Math.abs((el.y ?? 50) - (sourceEl.y ?? 50)) <= 3
+            Math.abs((el.y ?? 50) - (sourceEl.y ?? 50)) <= 5 // increased tolerance: 3 → 5
           ) {
             results.push({ slideId: sl.id, elementId: el.id, slideIndex: idx });
           }
@@ -398,7 +411,33 @@ export const useCanvasStore = create<CanvasStore>()(
       const siblings = findSiblings(slideId, elementId);
       if (siblings.length === 0) return;
 
-      // Build the patch: all props except id (and text if !includeText)
+      const { id: _id, text: _text, ...stylePatch } = sourceEl;
+      const patch: Partial<TextElement> = includeText
+        ? { ...stylePatch, text: sourceEl.text }
+        : stylePatch;
+
+      set((s) => ({
+        slides: s.slides.map((sl) => {
+          const sibling = siblings.find((sb) => sb.slideId === sl.id);
+          if (!sibling) return sl;
+          return {
+            ...sl,
+            elements: (sl.elements as TextElement[]).map((el) =>
+              el.id === sibling.elementId ? { ...el, ...patch } : el
+            ),
+          };
+        }),
+      }));
+    },
+
+    syncToExplicitSiblings: (slideId, elementId, siblings, includeText) => {
+      if (siblings.length === 0) return;
+      const { slides } = get();
+      const sourceSlide = slides.find((sl) => sl.id === slideId);
+      const sourceEl = sourceSlide?.elements.find((el) => el.id === elementId) as TextElement | undefined;
+      if (!sourceEl) return;
+
+      // Build patch from the CURRENT (already-updated) source element
       const { id: _id, text: _text, ...stylePatch } = sourceEl;
       const patch: Partial<TextElement> = includeText
         ? { ...stylePatch, text: sourceEl.text }
