@@ -124,10 +124,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Maximal 20 Bilder gleichzeitig" }, { status: 400 });
     }
 
+    const ALLOWED_MIMES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
     // Validate each image entry
     for (const img of images) {
-      if (typeof img.imageBase64 !== "string" || img.imageBase64.length > 14_000_000) {
-        return NextResponse.json({ error: "Ein Bild ist zu groß oder ungültig (max 10 MB)" }, { status: 400 });
+      if (typeof img.imageItemId !== "string") {
+        return NextResponse.json({ error: "imageItemId muss ein String sein" }, { status: 400 });
+      }
+      if (typeof img.imageBase64 !== "string" || img.imageBase64.length === 0) {
+        return NextResponse.json({ error: "imageBase64 fehlt oder ist kein String" }, { status: 400 });
+      }
+      if (img.imageBase64.length > 14_000_000) {
+        return NextResponse.json({ error: "Ein Bild ist zu groß (max 10 MB)" }, { status: 400 });
+      }
+      if (img.mimeType && !ALLOWED_MIMES.includes(img.mimeType)) {
+        return NextResponse.json({ error: `Nicht unterstützter MIME-Typ: ${img.mimeType}` }, { status: 400 });
       }
     }
 

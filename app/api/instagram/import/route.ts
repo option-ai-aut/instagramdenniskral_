@@ -10,6 +10,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 const DEFAULT_APP_ID = "936619743392459";
 
 /** Convert Instagram shortcode to numeric media ID */
@@ -170,8 +173,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = await req.json();
-    const url: string = body?.url;
+    const body = await req.json() as Record<string, unknown>;
+    const url = body?.url as string | undefined;
     const clientSessionId: string | undefined =
       typeof body?.sessionId === "string" ? body.sessionId.trim() : undefined;
 

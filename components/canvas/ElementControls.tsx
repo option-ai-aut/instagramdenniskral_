@@ -201,11 +201,21 @@ export function ElementControls() {
   const slide = slides.find((s) => s.id === selectedSlideId);
   const element = slide?.elements.find((el) => el.id === selectedElementId);
 
-  // Local text state prevents focus-loss on each keystroke
+  // Local text state prevents focus-loss on each keystroke.
+  // We sync from store whenever: (a) element selection changes, OR
+  // (b) text changes AND the textarea is not focused (e.g. sibling-sync applied from outside).
   const [localText, setLocalText] = useState(element?.text ?? "");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => {
     setLocalText(element?.text ?? "");
-  }, [element?.id]); // only sync when element SELECTION changes, not on every text update
+  }, [element?.id]); // always reset on element switch
+  useEffect(() => {
+    // If the store text was updated externally (e.g. sibling sync) while textarea is NOT focused, adopt it
+    if (element?.text !== undefined && document.activeElement !== textareaRef.current) {
+      setLocalText(element.text);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [element?.text]);
 
   // Sibling detection
   const siblings = selectedSlideId && selectedElementId
@@ -306,6 +316,7 @@ export function ElementControls() {
             <div>
               <p className="text-[10px] text-white/30 mb-2">Text</p>
               <textarea
+                ref={textareaRef}
                 value={localText}
                 onChange={(e) => {
                   setLocalText(e.target.value);

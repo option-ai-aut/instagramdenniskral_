@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
 
     if (!templateId || typeof templateId !== "string") {
       return NextResponse.json(
-        { error: "templateId is required. Call GET /api/openclaw/templates to see available templates.", received: requestBody },
+        { error: "templateId is required. Call GET /api/openclaw/templates to see available templates." },
         { status: 400 }
       );
     }

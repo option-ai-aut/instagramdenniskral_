@@ -11,6 +11,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateOpenclaw } from "@/lib/openclaw-auth";
 import { getDb } from "@/lib/db";
 import { SYSTEM_USER_ID } from "@/lib/auth";
+import { parseSlidesPayload } from "@/lib/slides-payload";
+import type { TextElement } from "@/store/canvasStore";
+
+export const dynamic = "force-dynamic";
 
 const BUILTIN_TEMPLATES = [
   {
@@ -67,7 +71,7 @@ export async function GET(req: NextRequest) {
       .order("updatedAt", { ascending: false });
 
     const savedTemplates = (carousels ?? []).map((c) => {
-      const slides = Array.isArray(c.slidesJson) ? c.slidesJson : [];
+      const { slides } = parseSlidesPayload(c.slidesJson);
       return {
         id: c.id,
         name: c.title,
@@ -75,11 +79,12 @@ export async function GET(req: NextRequest) {
         slideCount: slides.length,
         type: "saved",
         updatedAt: c.updatedAt,
-        slides: slides.map((slide: { elements?: { type: string; text: string }[] }, i: number) => ({
+        slides: slides.map((slide, i) => ({
           slideIndex: i,
-          elements: (slide.elements ?? []).map((el: { type: string; text: string }) => ({
+          elements: (slide.elements as TextElement[]).map((el) => ({
             type: el.type,
             currentText: el.text,
+            locked: !!el.locked,
           })),
         })),
       };

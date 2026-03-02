@@ -30,6 +30,7 @@ function CanvasInner() {
   const autoSaveIndicatorRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [autoSaving, setAutoSaving] = useState(false);
   const [autoSaved, setAutoSaved] = useState(false);
+  const [autoSaveError, setAutoSaveError] = useState(false);
 
   useEffect(() => {
     if (!savedCarouselId) return;
@@ -53,9 +54,11 @@ function CanvasInner() {
           }),
         });
         setAutoSaved(true);
+        setAutoSaveError(false);
         autoSaveIndicatorRef.current = setTimeout(() => setAutoSaved(false), 2000);
       } catch {
-        // silent – non-critical, user can still manually save
+        setAutoSaveError(true);
+        autoSaveIndicatorRef.current = setTimeout(() => setAutoSaveError(false), 4000);
       } finally {
         setAutoSaving(false);
       }
@@ -187,7 +190,17 @@ function CanvasInner() {
       setSavedCarousels((prev) =>
         prev.map((c) =>
           c.id === id
-            ? { ...c, title: carouselTitle, slidesJson: slides, updatedAt: new Date().toISOString() }
+            ? {
+                ...c,
+                title: carouselTitle,
+                slidesJson: buildSlidesPayload(slides, {
+                  intensity: grainIntensity,
+                  size: grainSize,
+                  density: grainDensity,
+                  sharpness: grainSharpness,
+                }),
+                updatedAt: new Date().toISOString(),
+              }
             : c
         )
       );
@@ -304,12 +317,16 @@ function CanvasInner() {
             "hidden sm:flex text-[10px] px-2 py-0.5 rounded-full items-center gap-1 flex-shrink-0 transition-all duration-300",
             autoSaving
               ? "bg-amber-500/10 text-amber-400/70 border border-amber-500/20"
+              : autoSaveError
+              ? "bg-red-500/10 text-red-400/70 border border-red-500/20"
               : autoSaved
               ? "bg-emerald-500/10 text-emerald-400/70 border border-emerald-500/20"
               : "bg-[#1d4ed8]/15 text-[#60a5fa]/70 border border-[#1d4ed8]/20"
           )}>
             {autoSaving
               ? <><LoaderIcon size={9} className="animate-spin" />Speichert…</>
+              : autoSaveError
+              ? <>⚠ Speichern fehlgeschlagen</>
               : autoSaved
               ? <><CheckIcon size={9} />Gespeichert</>
               : <><BookmarkIcon size={9} />Gespeichert</>

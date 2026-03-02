@@ -48,8 +48,11 @@ export async function GET(
     }
 
     // Query params override saved grain (omit param = use saved template value)
-    const clamp = (v: string | null, def: number) =>
-      v !== null ? Math.max(0, Math.min(100, Number(v) || def)) : def;
+    const clamp = (v: string | null, def: number) => {
+      if (v === null) return def;
+      const n = Number(v);
+      return Number.isNaN(n) ? def : Math.max(0, Math.min(100, n));
+    };
     const grainIntensity = req.nextUrl.searchParams.has("grain")
       ? clamp(req.nextUrl.searchParams.get("grain"), savedGrain.intensity)
       : savedGrain.intensity;
