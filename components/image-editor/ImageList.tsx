@@ -143,7 +143,7 @@ function DesktopImageCard({ img, index, selected, onSelect, onRemove }: {
       )}
     >
       <div className="aspect-square relative">
-        <Image src={img.originalDataUrl} alt={`Image ${index + 1}`} fill className="object-cover" sizes="200px" unoptimized />
+        <Image src={img.originalDataUrl || img.originalUrl || ""} alt={`Image ${index + 1}`} fill className="object-cover" sizes="200px" unoptimized />
         {img.status === "processing" && (
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
             <div className="w-5 h-5 border-2 border-[#1d4ed8] border-t-transparent rounded-full animate-spin" />
@@ -201,7 +201,7 @@ function MobileImageCard({ img, index, selected, onSelect, onRemove }: {
       )}
     >
       <div className="aspect-square relative">
-        <Image src={img.originalDataUrl} alt={`Image ${index + 1}`} fill className="object-cover" sizes="120px" unoptimized />
+        <Image src={img.originalDataUrl || img.originalUrl || ""} alt={`Image ${index + 1}`} fill className="object-cover" sizes="120px" unoptimized />
 
         {img.status === "processing" && (
           <div className="absolute inset-0 bg-black/60 flex items-center justify-center">

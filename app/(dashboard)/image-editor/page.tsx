@@ -35,6 +35,9 @@ export default function ImageEditorPage() {
     if (initDone.current) return;
     initDone.current = true;
 
+    // Remove the old oversized localStorage cache (v1 stored base64 data)
+    try { localStorage.removeItem("image-editor-store-v1"); } catch { /* ignore */ }
+
     // Only create a new session if none exists yet (prevents recreation on back-navigation)
     if (!sessionId) {
       fetch("/api/sessions", {
@@ -71,7 +74,7 @@ export default function ImageEditorPage() {
         });
         const { item } = await r.json();
         dbId = item?.id;
-        updateImage(imageId, { dbId, sessionId });
+        updateImage(imageId, { dbId, sessionId, originalUrl: item?.originalUrl });
       } catch (e) {
         console.error("Failed to save original:", e);
       }

@@ -114,7 +114,8 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
   const hasResult = !!selected.resultDataUrl;
   // When result exists and user hasn't toggled to original: show result
   const viewingOriginal = hasResult && showOriginal;
-  const previewSrc = viewingOriginal ? selected.originalDataUrl : (hasResult ? selected.resultDataUrl! : selected.originalDataUrl);
+  const originalSrc = selected.originalDataUrl || selected.originalUrl || "";
+  const previewSrc = viewingOriginal ? originalSrc : (hasResult ? selected.resultDataUrl! : originalSrc);
 
   const handleDownload = () => {
     downloadDataUrl(selected.resultDataUrl!, `denniskral_${selected.id}.png`);
