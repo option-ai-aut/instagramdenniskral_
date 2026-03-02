@@ -54,7 +54,7 @@ function LoginForm() {
           >
             <ZapIcon size={20} className="text-white" />
           </div>
-          <h1 className="text-2xl font-semibold gradient-text">Insta Builder</h1>
+          <h1 className="text-2xl font-semibold gradient-text">Insta Studio</h1>
           <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
             @denniskral_ · Content Studio
           </p>

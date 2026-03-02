@@ -1,5 +1,4 @@
 import { GoogleGenAI, ThinkingLevel, Modality } from "@google/genai";
-import sharp from "sharp";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY! });
 
@@ -47,30 +46,10 @@ export async function editImageWithGemini(
 
   for (const part of parts) {
     if (part.inlineData?.data) {
-      const outMime   = part.inlineData.mimeType ?? "image/png";
-      const outBase64 = part.inlineData.data;
-
-      // Gemini always returns PNG – convert back to the input format when possible
-      const SUPPORTED = ["image/jpeg", "image/png", "image/webp"];
-      if (outMime !== mimeType && SUPPORTED.includes(mimeType)) {
-        try {
-          const buf = Buffer.from(outBase64, "base64");
-          let converted: Buffer;
-          if (mimeType === "image/jpeg") {
-            converted = await sharp(buf).jpeg({ quality: 92 }).toBuffer();
-          } else if (mimeType === "image/webp") {
-            converted = await sharp(buf).webp({ quality: 92 }).toBuffer();
-          } else {
-            converted = await sharp(buf).png().toBuffer();
-          }
-          return { base64: converted.toString("base64"), mimeType };
-        } catch (convErr) {
-          console.warn("[gemini] Format conversion failed, returning Gemini's format:", convErr);
-          return { base64: outBase64, mimeType: outMime };
-        }
-      }
-
-      return { base64: outBase64, mimeType: outMime };
+      return {
+        base64: part.inlineData.data,
+        mimeType: part.inlineData.mimeType ?? "image/png",
+      };
     }
   }
 

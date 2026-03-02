@@ -21,7 +21,7 @@ export default function ApiDocsLayout({ children }: { children: React.ReactNode 
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
           </svg>
         </div>
-        <span className="text-sm font-semibold text-white/80">Insta Builder · API Docs</span>
+        <span className="text-sm font-semibold text-white/80">Insta Studio · API Docs</span>
         <a
           href="/image-editor"
           className="ml-auto text-[11px] text-white/30 hover:text-white/60 transition-colors"

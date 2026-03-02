@@ -119,7 +119,7 @@ export default function ApiDocsPage() {
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg,#1d4ed8,#60a5fa)" }}>
               <ZapIcon size={13} className="text-white" />
             </div>
-            <h1 className="text-xl font-bold text-white">Insta Builder – API Docs</h1>
+            <h1 className="text-xl font-bold text-white">Insta Studio – API Docs</h1>
           </div>
           <p className="text-sm text-white/40">
             Openclaw-Integration für den Canvas-Editor. Karussells per API erstellen, befüllen und als PNG exportieren.
@@ -304,7 +304,7 @@ curl -H "Authorization: Bearer YOUR_KEY" \\
   "tag": "LAUNCH DAY",
   "body": "@denniskral_",
   "slides": [
-    { "header": "Insta Builder ist live",   "subtitle": "Die App für mein Insta-Workflow." },
+    { "header": "Insta Studio ist live",   "subtitle": "Die App für mein Insta-Workflow." },
     { "header": "Was ich gebaut habe",       "subtitle": "Image Editor + Canvas + Openclaw\\nAlles in einer App." },
     { "header": "Was als nächstes kommt",    "subtitle": "KI-Training auf eigenen Prompts." }
   ]
@@ -321,7 +321,7 @@ curl -X POST ${BASE_URL}/api/openclaw/carousels \\
     "tag": "LAUNCH DAY",
     "body": "@denniskral_",
     "slides": [
-      { "header": "Insta Builder ist live", "subtitle": "3 Wochen Entwicklung.\\nHeute deployed." },
+      { "header": "Insta Studio ist live", "subtitle": "3 Wochen Entwicklung.\\nHeute deployed." },
       { "header": "Feature #1: Image Editor" }
     ]
   }'`} />
@@ -448,7 +448,7 @@ curl -X POST ${BASE_URL}/api/openclaw/carousels \\
     "body": "@denniskral_",
     "slides": [
       {
-        "header": "Insta Builder ist live",
+        "header": "Insta Studio ist live",
         "subtitle": "3 Wochen Entwicklung.\\nHeute deployed."
       },
       {
@@ -500,7 +500,7 @@ curl -X POST ${BASE_URL}/api/openclaw/carousels \\
           <div className="grid grid-cols-1 gap-2">
             {[
               { type: "tag",      scope: "global",    scopeColor: "#34d399", desc: "Kleines Label ganz oben (z.B. 'BUILD IN PUBLIC'). Gilt für alle Slides – einmal setzen, überall gleich.", example: "LAUNCH DAY" },
-              { type: "header",   scope: "pro slide",  scopeColor: "#60a5fa", desc: "Hauptüberschrift. Größte Schrift, fett. Kernbotschaft in 3–8 Wörtern. Jeder Slide hat seinen eigenen header.", example: "Insta Builder ist live" },
+              { type: "header",   scope: "pro slide",  scopeColor: "#60a5fa", desc: "Hauptüberschrift. Größte Schrift, fett. Kernbotschaft in 3–8 Wörtern. Jeder Slide hat seinen eigenen header.", example: "Insta Studio ist live" },
               { type: "subtitle", scope: "pro slide",  scopeColor: "#60a5fa", desc: "Erklärung oder Metrik unter dem Header. Jeder Slide hat seinen eigenen subtitle. Unterstützt \\n.", example: "3 Wochen Entwicklung\nheute deployed." },
               { type: "body",     scope: "global",    scopeColor: "#34d399", desc: "Kleiner Text ganz unten, meist der @handle. Gilt für alle Slides – einmal setzen, überall gleich.", example: "@denniskral_" },
             ].map((el) => (
@@ -555,7 +555,7 @@ curl -X POST ${BASE_URL}/api/openclaw/carousels \\
         </Section>
 
         <div className="text-center py-4">
-          <p className="text-[11px] text-white/20">Insta Builder · Openclaw API v1 · {BASE_URL}</p>
+          <p className="text-[11px] text-white/20">Insta Studio · Openclaw API v1 · {BASE_URL}</p>
         </div>
       </div>
     </div>

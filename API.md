@@ -1,4 +1,4 @@
-# Insta Builder – API Dokumentation
+# Insta Studio – API Dokumentation
 
 > Stand: März 2026  
 > Basis-URL: `https://instagramdenniskral.vercel.app`

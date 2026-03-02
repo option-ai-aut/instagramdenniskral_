@@ -3,12 +3,12 @@ import "./globals.css";
 import { GOOGLE_FONTS_URL } from "@/lib/fonts";
 
 export const metadata: Metadata = {
-  title: "Insta Builder – @denniskral_",
+  title: "Insta Studio – @denniskral_",
   description: "Instagram Content Creation powered by Gemini AI",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Insta Builder",
+    title: "Insta Studio",
   },
 };
 

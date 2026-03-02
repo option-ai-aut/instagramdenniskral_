@@ -37,7 +37,7 @@ export function Sidebar() {
             <ZapIcon size={14} className="text-white" />
           </div>
           <div>
-            <p className="text-sm font-semibold gradient-text">Insta Builder</p>
+            <p className="text-sm font-semibold gradient-text">Insta Studio</p>
             <p className="text-[10px]" style={{ color: "var(--text-secondary)" }}>
               @denniskral_
             </p>
