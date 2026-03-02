@@ -1,6 +1,32 @@
 import { GoogleGenAI, ThinkingLevel, Modality } from "@google/genai";
 import sharp from "sharp";
 
+/** Supported aspectRatio values per ImageConfig docs */
+const SUPPORTED_RATIOS: { ratio: number; str: string }[] = [
+  { ratio: 1 / 1,  str: "1:1"  },
+  { ratio: 2 / 3,  str: "2:3"  },
+  { ratio: 3 / 2,  str: "3:2"  },
+  { ratio: 3 / 4,  str: "3:4"  },
+  { ratio: 4 / 3,  str: "4:3"  },
+  { ratio: 4 / 5,  str: "4:5"  },
+  { ratio: 5 / 4,  str: "5:4"  },
+  { ratio: 9 / 16, str: "9:16" },
+  { ratio: 16 / 9, str: "16:9" },
+  { ratio: 21 / 9, str: "21:9" },
+];
+
+function nearestAspectRatio(w: number, h: number): string {
+  if (w <= 0 || h <= 0) return "1:1";
+  const r = w / h;
+  let best = SUPPORTED_RATIOS[0];
+  let bestDiff = Math.abs(r - best.ratio);
+  for (const candidate of SUPPORTED_RATIOS) {
+    const diff = Math.abs(r - candidate.ratio);
+    if (diff < bestDiff) { bestDiff = diff; best = candidate; }
+  }
+  return best.str;
+}
+
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_AI_API_KEY! });
 
 /** Image editing models */
@@ -26,15 +52,13 @@ export async function editImageWithGemini(
   imageSize: "1K" | "2K" | "4K" = "2K",
   model: string = IMAGE_MODEL
 ): Promise<{ base64: string; mimeType: string }> {
-  // Read input dimensions so we can restore the exact aspect ratio afterward
-  let inputW = 0;
-  let inputH = 0;
+  // Determine the input aspect ratio so Gemini returns the same format
+  let aspectRatio = "1:1";
   try {
     const { width = 0, height = 0 } = await sharp(Buffer.from(imageBase64, "base64")).metadata();
-    inputW = width;
-    inputH = height;
+    aspectRatio = nearestAspectRatio(width, height);
   } catch {
-    // If sharp fails (corrupt input) we'll skip the correction below
+    // Fallback: let Gemini decide
   }
 
   const response = await ai.models.generateContent({
@@ -50,7 +74,7 @@ export async function editImageWithGemini(
     ],
     config: {
       responseModalities: [Modality.IMAGE, Modality.TEXT],
-      imageConfig: { imageSize },
+      imageConfig: { imageSize, aspectRatio },
     },
   });
 
@@ -58,49 +82,10 @@ export async function editImageWithGemini(
 
   for (const part of parts) {
     if (part.inlineData?.data) {
-      const outBase64 = part.inlineData.data;
-      const outMime   = part.inlineData.mimeType ?? "image/png";
-
-      // Crop output to match input aspect ratio (Gemini often changes it)
-      if (inputW > 0 && inputH > 0) {
-        try {
-          const outBuf = Buffer.from(outBase64, "base64");
-          const { width: outW = 0, height: outH = 0 } = await sharp(outBuf).metadata();
-
-          if (outW > 0 && outH > 0) {
-            const inRatio  = inputW / inputH;
-            const outRatio = outW   / outH;
-
-            // Only correct when ratio differs by more than 1 %
-            if (Math.abs(inRatio - outRatio) / inRatio > 0.01) {
-              // Determine crop box that fits inside output and matches input ratio
-              let cropW: number, cropH: number;
-              if (outW / inRatio <= outH) {
-                cropW = outW;
-                cropH = Math.round(outW / inRatio);
-              } else {
-                cropH = outH;
-                cropW = Math.round(outH * inRatio);
-              }
-
-              const corrected = await sharp(outBuf)
-                .extract({
-                  left:   Math.floor((outW - cropW) / 2),
-                  top:    Math.floor((outH - cropH) / 2),
-                  width:  cropW,
-                  height: cropH,
-                })
-                .toBuffer();
-
-              return { base64: corrected.toString("base64"), mimeType: outMime };
-            }
-          }
-        } catch (err) {
-          console.warn("[gemini] Aspect-ratio correction failed, returning original:", err);
-        }
-      }
-
-      return { base64: outBase64, mimeType: outMime };
+      return {
+        base64: part.inlineData.data,
+        mimeType: part.inlineData.mimeType ?? "image/png",
+      };
     }
   }
 
