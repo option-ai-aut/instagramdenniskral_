@@ -63,6 +63,14 @@ export async function POST(req: NextRequest) {
     const message = err instanceof Error ? err.message : String(err);
     const stack = err instanceof Error ? err.stack : undefined;
     console.error("Generate error:", message, stack);
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Sanitize: never expose raw AI/internal error strings to the client
+    const clientMsg = message.includes("PERMISSION_DENIED") || message.includes("API key")
+      ? "API-Fehler – bitte API-Schlüssel prüfen"
+      : message.includes("quota") || message.includes("RESOURCE_EXHAUSTED")
+      ? "Kontingent erschöpft – bitte später erneut versuchen"
+      : message.includes("returned no image")
+      ? "KI hat kein Bild zurückgegeben – bitte Prompt anpassen"
+      : "Generierung fehlgeschlagen";
+    return NextResponse.json({ error: clientMsg }, { status: 500 });
   }
 }

@@ -5,7 +5,7 @@ import { uploadBase64ToSupabase } from "@/lib/supabase";
 import { requireAuth, SYSTEM_USER_ID } from "@/lib/auth";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120; // Up to 20 images × 2 Gemini calls each can take 60–90s
 
 const ALLOWED_IMAGE_MODELS = [IMAGE_MODEL_PRO, IMAGE_MODEL_FLASH] as const;
 
@@ -148,6 +148,11 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("Smart generate error:", message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    const clientMsg = message.includes("PERMISSION_DENIED") || message.includes("API key")
+      ? "API-Fehler – bitte API-Schlüssel prüfen"
+      : message.includes("quota") || message.includes("RESOURCE_EXHAUSTED")
+      ? "Kontingent erschöpft – bitte später erneut versuchen"
+      : "KI-Generierung fehlgeschlagen";
+    return NextResponse.json({ error: clientMsg }, { status: 500 });
   }
 }

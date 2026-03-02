@@ -121,18 +121,19 @@ export default function ImageEditorPage() {
     setSmartError(null);
     setSmartLoading(true);
 
-    // Mark all images as processing
-    images.forEach((img) => updateImage(img.id, { status: "processing", error: undefined }));
-
     try {
+      // Load prompts BEFORE marking images as processing to avoid flicker when no prompts exist
       const promptsRes = await fetch("/api/prompts");
       const { prompts } = await promptsRes.json();
 
       if (!prompts || prompts.length === 0) {
         setSmartError("Noch keine Prompts gespeichert. Speichere zuerst einige Prompts.");
-        images.forEach((img) => updateImage(img.id, { status: "idle" }));
+        setSmartLoading(false);
         return;
       }
+
+      // Only mark as processing once we know we'll actually send them
+      images.forEach((img) => updateImage(img.id, { status: "processing", error: undefined }));
 
       const savedPromptTexts: string[] = prompts.map((p: { text: string }) => p.text);
 

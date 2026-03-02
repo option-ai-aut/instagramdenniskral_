@@ -9,11 +9,15 @@ import { timingSafeEqual } from "crypto";
 function safeEqual(a: string, b: string): boolean {
   try {
     const { createHmac } = require("crypto") as typeof import("crypto");
-    const key = Buffer.from("instabuilder-compare-key");
+    // Use a stable app-specific secret; fall back to a hard-coded value if not set.
+    // The HMAC prevents timing leaks by normalising both inputs to a fixed-length hash.
+    const hmacSecret = process.env.AUTH_HMAC_SECRET ?? "instabuilder-compare-key";
+    const key = Buffer.from(hmacSecret);
     const hashA = createHmac("sha256", key).update(a).digest();
     const hashB = createHmac("sha256", key).update(b).digest();
     return timingSafeEqual(hashA, hashB);
-  } catch {
+  } catch (err) {
+    console.error("[auth] safeEqual failed:", err);
     return false;
   }
 }
