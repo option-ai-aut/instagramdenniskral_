@@ -38,6 +38,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false);
   const [humanizing, setHumanizing] = useState(false);
+  const [humanizeError, setHumanizeError] = useState<string | null>(null);
   const [cropRatio, setCropRatio] = useState<"none" | "1:1" | "4:5">("none");
 
   const fetchPrompts = useCallback(async () => {
@@ -123,11 +124,15 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
   const handleDownload = async () => {
     if (!previewSrc) return;
     setHumanizing(true);
+    setHumanizeError(null);
     try {
-      // Always resolve to a data URL first – avoids canvas CORS taint for Supabase URLs
+      // Step 0: resolve to data URL (avoids canvas CORS taint for Supabase URLs)
       let dataUrl = previewSrc;
       if (previewSrc.startsWith("http")) {
-        const blob = await fetch(previewSrc).then((r) => r.blob());
+        const blob = await fetch(previewSrc).then((r) => {
+          if (!r.ok) throw new Error(`Fetch ${r.status}`);
+          return r.blob();
+        });
         dataUrl = await new Promise<string>((res, rej) => {
           const reader = new FileReader();
           reader.onload  = () => res(reader.result as string);
@@ -143,7 +148,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
         processed = await cropImage(processed, cropRatio);
       }
 
-      // Step 2: humanize – only for AI-generated results (not viewing original)
+      // Step 2: humanize (noise + CA + JPEG re-encode)
       if (hasResult && !viewingOriginal) {
         processed = await humanizeImage(processed);
       }
@@ -151,7 +156,10 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
       const suffix = cropRatio !== "none" ? ` ${cropRatio}` : "";
       downloadDataUrl(processed, `${studioFilename()}${suffix}.jpg`);
     } catch (err) {
-      console.error("[download] failed:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[download] failed:", msg);
+      setHumanizeError(msg);
+      // Still download original so user isn't stuck
       downloadDataUrl(previewSrc, `${studioFilename()}.jpg`);
     } finally {
       setHumanizing(false);
@@ -296,6 +304,13 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
                 >
                   <MaximizeIcon size={13} />
                 </button>
+              </div>
+            )}
+
+            {/* Processing error */}
+            {humanizeError && (
+              <div className="mt-1.5 px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/20 text-[10px] text-red-400 break-all">
+                Fehler: {humanizeError}
               </div>
             )}
 

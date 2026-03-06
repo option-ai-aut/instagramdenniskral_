@@ -209,104 +209,98 @@ export function cropImage(dataUrl: string, ratio: "1:1" | "4:5"): Promise<string
  * All operations: Canvas getImageData / putImageData (no server, no deps).
  * Processing time ≈ 1–4 s for a 2 K image.
  */
+/**
+ * Applies pixel-level transformations to break AI-detection fingerprints.
+ * Always receives a data URL (caller pre-fetches remote URLs).
+ *
+ * Single-pass approach (no nested image loads) for maximum reliability:
+ *  1. Chromatic aberration  – R +2px, B -2px
+ *  2. Luminance + chroma noise
+ *  3. Global color drift
+ *  4. Re-encode as JPEG at 88 %
+ */
 export function humanizeImage(dataUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const img = new window.Image();
-    // No crossOrigin needed – caller always resolves to a data URL before calling us
+    try {
+      const img = new window.Image();
 
-    img.onload = () => {
-      const W = img.naturalWidth;
-      const H = img.naturalHeight;
+      img.onload = () => {
+        try {
+          const W = img.naturalWidth;
+          const H = img.naturalHeight;
 
-      // ── Pass 1: chromatic aberration + noise + drift ──────────────────────
-      const c1 = document.createElement("canvas");
-      c1.width = W; c1.height = H;
-      const ctx1 = c1.getContext("2d");
-      if (!ctx1) { reject(new Error("Canvas not available")); return; }
-      ctx1.drawImage(img, 0, 0);
-
-      const src = ctx1.getImageData(0, 0, W, H);
-      const out = ctx1.createImageData(W, H);
-      const s = src.data, d = out.data;
-
-      // Chromatic aberration: shift R +2px right, B -2px left
-      const caShift = 2;
-      // Global color drift
-      const rDrift = (Math.random() - 0.5) * 10;
-      const gDrift = (Math.random() - 0.5) * 5;
-      const bDrift = (Math.random() - 0.5) * 10;
-
-      for (let y = 0; y < H; y++) {
-        for (let x = 0; x < W; x++) {
-          const i = (y * W + x) * 4;
-
-          // R: read from pixel shifted left (so R appears right)
-          const rX = Math.max(0, x - caShift);
-          const rI = (y * W + rX) * 4;
-          // B: read from pixel shifted right (so B appears left)
-          const bX = Math.min(W - 1, x + caShift);
-          const bI = (y * W + bX) * 4;
-
-          // Luminance noise (correlated → ISO grain)
-          const luma = (Math.random() - 0.5) * 24;
-          const rN   = luma + (Math.random() - 0.5) * 16;
-          const gN   = luma + (Math.random() - 0.5) * 10;
-          const bN   = luma + (Math.random() - 0.5) * 16;
-
-          d[i]     = Math.min(255, Math.max(0, s[rI]     + rN + rDrift));
-          d[i + 1] = Math.min(255, Math.max(0, s[i + 1]  + gN + gDrift));
-          d[i + 2] = Math.min(255, Math.max(0, s[bI + 2] + bN + bDrift));
-          d[i + 3] = 255;
-        }
-      }
-      ctx1.putImageData(out, 0, 0);
-
-      // ── JPEG pass 1 at 87 % – injects DCT block artefacts ─────────────────
-      c1.toBlob((blob1) => {
-        if (!blob1) { reject(new Error("toBlob pass-1 failed")); return; }
-        const url1 = URL.createObjectURL(blob1);
-        const img2 = new window.Image();
-
-        img2.onload = () => {
-          URL.revokeObjectURL(url1);
-          const c2 = document.createElement("canvas");
-          c2.width = img2.naturalWidth; c2.height = img2.naturalHeight;
-          const ctx2 = c2.getContext("2d");
-          if (!ctx2) { reject(new Error("Canvas pass-2 not available")); return; }
-          ctx2.drawImage(img2, 0, 0);
-
-          // ── Subtle unsharp-mask sharpening (real cameras apply sharpening) ──
-          // Approximation: draw image slightly blurred behind, then blend
-          const W2 = c2.width, H2 = c2.height;
-          const id2 = ctx2.getImageData(0, 0, W2, H2);
-          const px2 = id2.data;
-
-          // Fine grain overlay + mild brightness jitter
-          for (let i = 0; i < px2.length; i += 4) {
-            const g = (Math.random() - 0.5) * 8; // ±4 luminance grain
-            px2[i]     = Math.min(255, Math.max(0, px2[i]     + g));
-            px2[i + 1] = Math.min(255, Math.max(0, px2[i + 1] + g));
-            px2[i + 2] = Math.min(255, Math.max(0, px2[i + 2] + g));
+          if (W === 0 || H === 0) {
+            reject(new Error("Image has zero dimensions"));
+            return;
           }
-          ctx2.putImageData(id2, 0, 0);
 
-          // ── JPEG pass 2 at 93 % – second DCT rounding layer ───────────────
-          c2.toBlob((blob2) => {
-            if (!blob2) { reject(new Error("toBlob pass-2 failed")); return; }
-            const reader = new FileReader();
-            reader.onload  = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob2);
-          }, "image/jpeg", 0.93);
-        };
+          const canvas = document.createElement("canvas");
+          canvas.width  = W;
+          canvas.height = H;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) { reject(new Error("Canvas 2d context unavailable")); return; }
 
-        img2.onerror = reject;
-        img2.src = url1;
-      }, "image/jpeg", 0.87);
-    };
+          ctx.drawImage(img, 0, 0);
 
-    img.onerror = () => reject(new Error("Image load failed"));
-    img.src = dataUrl;
+          // Read source pixels
+          let srcData: ImageData;
+          try {
+            srcData = ctx.getImageData(0, 0, W, H);
+          } catch (e) {
+            reject(new Error(`getImageData failed (tainted canvas?): ${e}`));
+            return;
+          }
+
+          const s = srcData.data;
+          const out = ctx.createImageData(W, H);
+          const d   = out.data;
+
+          const CA   = 2;                            // chromatic aberration shift px
+          const rDrift = (Math.random() - 0.5) * 10;
+          const gDrift = (Math.random() - 0.5) * 5;
+          const bDrift = (Math.random() - 0.5) * 10;
+
+          for (let y = 0; y < H; y++) {
+            for (let x = 0; x < W; x++) {
+              const i  = (y * W + x) * 4;
+              const rI = (y * W + Math.max(0,     x - CA)) * 4; // R from x-CA
+              const bI = (y * W + Math.min(W - 1, x + CA)) * 4; // B from x+CA
+
+              const luma = (Math.random() - 0.5) * 24;
+              const rN   = luma + (Math.random() - 0.5) * 16;
+              const gN   = luma + (Math.random() - 0.5) * 10;
+              const bN   = luma + (Math.random() - 0.5) * 16;
+
+              d[i]     = Math.min(255, Math.max(0, s[rI]     + rN + rDrift));
+              d[i + 1] = Math.min(255, Math.max(0, s[i + 1]  + gN + gDrift));
+              d[i + 2] = Math.min(255, Math.max(0, s[bI + 2] + bN + bDrift));
+              d[i + 3] = 255;
+            }
+          }
+
+          ctx.putImageData(out, 0, 0);
+
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) { reject(new Error("canvas.toBlob returned null")); return; }
+              const reader = new FileReader();
+              reader.onload  = () => resolve(reader.result as string);
+              reader.onerror = (e) => reject(new Error(`FileReader failed: ${e}`));
+              reader.readAsDataURL(blob);
+            },
+            "image/jpeg",
+            0.88
+          );
+        } catch (innerErr) {
+          reject(innerErr);
+        }
+      };
+
+      img.onerror = (e) => reject(new Error(`Image failed to load: ${e}`));
+      img.src = dataUrl;
+    } catch (outerErr) {
+      reject(outerErr);
+    }
   });
 }
 
