@@ -285,7 +285,7 @@ export function humanizeImage(dataUrl: string): Promise<string> {
           // Overlay grain at full size (soft-light blends like real film)
           ctxFull.save();
           ctxFull.globalCompositeOperation = "soft-light";
-          ctxFull.globalAlpha = 0.18;
+          ctxFull.globalAlpha = 0.06;
           ctxFull.imageSmoothingEnabled = true;
           ctxFull.imageSmoothingQuality = "high";
           ctxFull.drawImage(cGrain, 0, 0, W, H);
@@ -296,7 +296,7 @@ export function humanizeImage(dataUrl: string): Promise<string> {
           const outerR = Math.sqrt(cx * cx + cy * cy);
           const vignette = ctxFull.createRadialGradient(cx, cy, outerR * 0.45, cx, cy, outerR);
           vignette.addColorStop(0, "rgba(0,0,0,0)");
-          vignette.addColorStop(1, "rgba(0,0,0,0.22)");
+          vignette.addColorStop(1, "rgba(0,0,0,0.08)");
           ctxFull.save();
           ctxFull.globalCompositeOperation = "source-over";
           ctxFull.fillStyle = vignette;
@@ -325,7 +325,7 @@ export function humanizeImage(dataUrl: string): Promise<string> {
 
               // Bayer-like chroma noise: R and B channels noisier than G
               const luma01 = (s[i] * 0.299 + s[i+1] * 0.587 + s[i+2] * 0.114) / 255;
-              const amp = 2 + (1 - luma01) * 6; // ±2 highlights → ±8 shadows
+              const amp = 1 + (1 - luma01) * 3; // ±1 highlights → ±4 shadows
               const rN = (Math.random() - 0.5) * amp * 2.2;
               const gN = (Math.random() - 0.5) * amp * 0.9; // green noisier in Bayer
               const bN = (Math.random() - 0.5) * amp * 2.2;
@@ -348,7 +348,7 @@ export function humanizeImage(dataUrl: string): Promise<string> {
               reader.readAsDataURL(blob);
             },
             "image/jpeg",
-            0.76
+            0.82
           );
         } catch (err) { reject(err); }
       };
