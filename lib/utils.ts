@@ -348,7 +348,7 @@ export function humanizeImage(dataUrl: string): Promise<string> {
               reader.readAsDataURL(blob);
             },
             "image/jpeg",
-            0.82
+            0.95
           );
         } catch (err) { reject(err); }
       };
