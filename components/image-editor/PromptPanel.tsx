@@ -125,12 +125,24 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
     if (!previewSrc) return;
     setHumanizing(true);
     setHumanizeError(null);
+
+    // Debug: log state so we can diagnose in console
+    console.log("[download] start", {
+      previewSrc: previewSrc.slice(0, 60),
+      hasResult,
+      viewingOriginal,
+      resultDataUrl: !!selected.resultDataUrl,
+      resultUrl: selected.resultUrl,
+      status: selected.status,
+    });
+
     try {
-      // Step 0: resolve to data URL (avoids canvas CORS taint for Supabase URLs)
+      // Step 0: resolve to data URL (avoids canvas CORS taint for Supabase/CDN URLs)
       let dataUrl = previewSrc;
       if (previewSrc.startsWith("http")) {
+        console.log("[download] fetching remote URL as blob…");
         const blob = await fetch(previewSrc).then((r) => {
-          if (!r.ok) throw new Error(`Fetch ${r.status}`);
+          if (!r.ok) throw new Error(`Fetch failed: ${r.status} ${r.statusText}`);
           return r.blob();
         });
         dataUrl = await new Promise<string>((res, rej) => {
@@ -139,27 +151,30 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
           reader.onerror = rej;
           reader.readAsDataURL(blob);
         });
+        console.log("[download] blob→dataUrl done, size:", dataUrl.length);
       }
-
-      let processed = dataUrl;
 
       // Step 1: center-crop if ratio selected
+      let processed = dataUrl;
       if (cropRatio !== "none") {
         processed = await cropImage(processed, cropRatio);
+        console.log("[download] crop done");
       }
 
-      // Step 2: humanize (noise + CA + JPEG re-encode)
-      if (hasResult && !viewingOriginal) {
-        processed = await humanizeImage(processed);
-      }
+      // Step 2: always humanize – regardless of hasResult, always apply
+      // (the previous condition `hasResult && !viewingOriginal` was the bug:
+      //  old images had resultUrl=undefined so hasResult=false → skipped)
+      console.log("[download] humanizing…");
+      processed = await humanizeImage(processed);
+      console.log("[download] humanize done, size:", processed.length);
 
       const suffix = cropRatio !== "none" ? ` ${cropRatio}` : "";
       downloadDataUrl(processed, `${studioFilename()}${suffix}.jpg`);
+      console.log("[download] complete");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error("[download] failed:", msg);
+      console.error("[download] ERROR:", msg, err);
       setHumanizeError(msg);
-      // Still download original so user isn't stuck
       downloadDataUrl(previewSrc, `${studioFilename()}.jpg`);
     } finally {
       setHumanizing(false);
