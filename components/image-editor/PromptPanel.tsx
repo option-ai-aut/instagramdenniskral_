@@ -121,30 +121,38 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
   const previewSrc = viewingOriginal ? originalSrc : (hasResult ? resultSrc : originalSrc);
 
   const handleDownload = async () => {
-    const src = previewSrc;
-    if (!src) return;
+    if (!previewSrc) return;
     setHumanizing(true);
     try {
-      let processed = src;
+      // Always resolve to a data URL first – avoids canvas CORS taint for Supabase URLs
+      let dataUrl = previewSrc;
+      if (previewSrc.startsWith("http")) {
+        const blob = await fetch(previewSrc).then((r) => r.blob());
+        dataUrl = await new Promise<string>((res, rej) => {
+          const reader = new FileReader();
+          reader.onload  = () => res(reader.result as string);
+          reader.onerror = rej;
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      let processed = dataUrl;
+
       // Step 1: center-crop if ratio selected
       if (cropRatio !== "none") {
         processed = await cropImage(processed, cropRatio);
       }
-      // Step 2: humanize – applies to AI results OR any image the user chooses to process
-      const shouldHumanize = hasResult && !viewingOriginal;
-      if (shouldHumanize) {
-        try {
-          processed = await humanizeImage(processed);
-        } catch (humanizeErr) {
-          console.warn("[download] humanize failed, using unprocessed:", humanizeErr);
-          // Don't fall back silently – continue with unhumanized (crop already applied)
-        }
+
+      // Step 2: humanize – only for AI-generated results (not viewing original)
+      if (hasResult && !viewingOriginal) {
+        processed = await humanizeImage(processed);
       }
+
       const suffix = cropRatio !== "none" ? ` ${cropRatio}` : "";
       downloadDataUrl(processed, `${studioFilename()}${suffix}.jpg`);
     } catch (err) {
       console.error("[download] failed:", err);
-      downloadDataUrl(src, `${studioFilename()}.jpg`);
+      downloadDataUrl(previewSrc, `${studioFilename()}.jpg`);
     } finally {
       setHumanizing(false);
     }

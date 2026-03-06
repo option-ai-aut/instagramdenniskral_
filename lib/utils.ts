@@ -146,7 +146,6 @@ export function compressImage(
 export function cropImage(dataUrl: string, ratio: "1:1" | "4:5"): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new window.Image();
-    img.crossOrigin = "anonymous";
     img.onload = () => {
       const { naturalWidth: w, naturalHeight: h } = img;
       const [rw, rh] = ratio.split(":").map(Number);
@@ -213,8 +212,7 @@ export function cropImage(dataUrl: string, ratio: "1:1" | "4:5"): Promise<string
 export function humanizeImage(dataUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new window.Image();
-    // Needed for Supabase/CDN URLs so canvas.getImageData() doesn't throw SecurityError
-    img.crossOrigin = "anonymous";
+    // No crossOrigin needed – caller always resolves to a data URL before calling us
 
     img.onload = () => {
       const W = img.naturalWidth;
