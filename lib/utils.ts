@@ -215,11 +215,13 @@ export function cropImage(dataUrl: string, ratio: "1:1" | "4:5"): Promise<string
  *  1. Resize pass 1: 78 % → 100 % (bicubic – destroys diffusion-model patterns)
  *  2. Lens blur: 0.5 px Gaussian (simulates real optics; breaks sharp AI edges)
  *  3. Resize pass 2: 92 % → 100 % (second interpolation round)
- *  4. Luminance-dependent noise: more in shadows (±28), less in highlights (±6)
- *     – exactly matches photon shot noise + read noise of a real camera sensor
- *  5. Chromatic aberration: R +3 px, B −3 px (stronger lens dispersion)
- *  6. Global color drift (lens tint / white-balance variance)
- *  7. Re-encode as JPEG at 65 % (strong DCT quantisation artefacts)
+ *  4. Film grain (spatially correlated): noise is clustered like real sensor grain,
+ *     not per-pixel random – statistically matches Bayer sensor read noise
+ *  5. Lens vignetting: radial darkening at image corners (all real lenses do this)
+ *  6. Luminance-dependent chroma noise: Bayer R/B channels noisier than G
+ *  7. Chromatic aberration: R +3 px, B −3 px
+ *  8. Global color drift (lens tint)
+ *  9. Re-encode as JPEG at 76 %
  *
  * Always receives a data URL – caller must pre-fetch remote URLs first.
  */
@@ -264,7 +266,44 @@ export function humanizeImage(dataUrl: string): Promise<string> {
           smooth(c2).drawImage(cFull, 0, 0, c2.width, c2.height);
           smooth(cFull).drawImage(c2, 0, 0, W, H);
 
-          // ── Read pixels ──────────────────────────────────────────────────
+          // ── Film grain (spatially correlated) ────────────────────────────
+          // Generate grain at 1/4 scale → upscale → clusters like real sensor grain
+          const GRAIN_SCALE = 0.28;
+          const gW = Math.max(1, Math.round(W * GRAIN_SCALE));
+          const gH = Math.max(1, Math.round(H * GRAIN_SCALE));
+          const cGrain = document.createElement("canvas");
+          cGrain.width = gW; cGrain.height = gH;
+          const gCtx = cGrain.getContext("2d")!;
+          const grainData = gCtx.createImageData(gW, gH);
+          for (let i = 0; i < grainData.data.length; i += 4) {
+            const v = Math.round(Math.random() * 255);
+            grainData.data[i] = v; grainData.data[i+1] = v;
+            grainData.data[i+2] = v; grainData.data[i+3] = 255;
+          }
+          gCtx.putImageData(grainData, 0, 0);
+
+          // Overlay grain at full size (soft-light blends like real film)
+          ctxFull.save();
+          ctxFull.globalCompositeOperation = "soft-light";
+          ctxFull.globalAlpha = 0.18;
+          ctxFull.imageSmoothingEnabled = true;
+          ctxFull.imageSmoothingQuality = "high";
+          ctxFull.drawImage(cGrain, 0, 0, W, H);
+          ctxFull.restore();
+
+          // ── Vignetting (all real lenses darken corners) ───────────────────
+          const cx = W / 2, cy = H / 2;
+          const outerR = Math.sqrt(cx * cx + cy * cy);
+          const vignette = ctxFull.createRadialGradient(cx, cy, outerR * 0.45, cx, cy, outerR);
+          vignette.addColorStop(0, "rgba(0,0,0,0)");
+          vignette.addColorStop(1, "rgba(0,0,0,0.22)");
+          ctxFull.save();
+          ctxFull.globalCompositeOperation = "source-over";
+          ctxFull.fillStyle = vignette;
+          ctxFull.fillRect(0, 0, W, H);
+          ctxFull.restore();
+
+          // ── Read pixels for CA + chroma noise ────────────────────────────
           let srcData: ImageData;
           try { srcData = ctxFull.getImageData(0, 0, W, H); }
           catch (e) { reject(new Error(`getImageData failed: ${e}`)); return; }
@@ -273,7 +312,7 @@ export function humanizeImage(dataUrl: string): Promise<string> {
           const out = ctxFull.createImageData(W, H);
           const d = out.data;
 
-          const CA = 3;                               // chromatic aberration px
+          const CA = 3;
           const rDrift = (Math.random() - 0.5) * 6;
           const gDrift = (Math.random() - 0.5) * 3;
           const bDrift = (Math.random() - 0.5) * 6;
@@ -284,13 +323,12 @@ export function humanizeImage(dataUrl: string): Promise<string> {
               const rI = (y * W + Math.max(0,     x - CA)) * 4;
               const bI = (y * W + Math.min(W - 1, x + CA)) * 4;
 
-              // Luminance-dependent noise: dark pixels → more noise (shot noise)
+              // Bayer-like chroma noise: R and B channels noisier than G
               const luma01 = (s[i] * 0.299 + s[i+1] * 0.587 + s[i+2] * 0.114) / 255;
-              const noiseAmp = 3 + (1 - luma01) * 9;    // ±3 highlights, ±12 shadows
-              const base = (Math.random() - 0.5) * noiseAmp * 2;
-              const rN = base + (Math.random() - 0.5) * noiseAmp * 0.6;
-              const gN = base + (Math.random() - 0.5) * noiseAmp * 0.4;
-              const bN = base + (Math.random() - 0.5) * noiseAmp * 0.6;
+              const amp = 2 + (1 - luma01) * 6; // ±2 highlights → ±8 shadows
+              const rN = (Math.random() - 0.5) * amp * 2.2;
+              const gN = (Math.random() - 0.5) * amp * 0.9; // green noisier in Bayer
+              const bN = (Math.random() - 0.5) * amp * 2.2;
 
               d[i]     = Math.min(255, Math.max(0, s[rI]     + rN + rDrift));
               d[i + 1] = Math.min(255, Math.max(0, s[i + 1]  + gN + gDrift));
@@ -300,7 +338,7 @@ export function humanizeImage(dataUrl: string): Promise<string> {
           }
           ctxFull.putImageData(out, 0, 0);
 
-          // ── JPEG at 65 % ─────────────────────────────────────────────────
+          // ── JPEG at 76 % ─────────────────────────────────────────────────
           cFull.toBlob(
             (blob) => {
               if (!blob) { reject(new Error("toBlob returned null")); return; }
@@ -310,7 +348,7 @@ export function humanizeImage(dataUrl: string): Promise<string> {
               reader.readAsDataURL(blob);
             },
             "image/jpeg",
-            0.82
+            0.76
           );
         } catch (err) { reject(err); }
       };
