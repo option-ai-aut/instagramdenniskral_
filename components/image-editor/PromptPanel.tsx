@@ -119,21 +119,24 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
   const previewSrc = viewingOriginal ? originalSrc : (hasResult ? selected.resultDataUrl! : originalSrc);
 
   const handleDownload = async () => {
-    if (!selected.resultDataUrl) return;
+    // Use result if available, otherwise fall back to original
+    const src = previewSrc;
+    if (!src) return;
     setHumanizing(true);
     try {
+      let processed = src;
       // Step 1: center-crop if ratio selected
-      let src = selected.resultDataUrl;
       if (cropRatio !== "none") {
-        src = await cropImage(src, cropRatio);
+        processed = await cropImage(processed, cropRatio);
       }
-      // Step 2: humanize (noise + compression artifacts)
-      const humanized = await humanizeImage(src);
+      // Step 2: humanize (noise + compression artifacts) – only for AI-generated results
+      if (hasResult && !viewingOriginal) {
+        processed = await humanizeImage(processed);
+      }
       const suffix = cropRatio !== "none" ? ` ${cropRatio}` : "";
-      downloadDataUrl(humanized, `${studioFilename()}${suffix}.jpg`);
+      downloadDataUrl(processed, `${studioFilename()}${suffix}.jpg`);
     } catch {
-      const ext = (selected.resultMimeType ?? "image/png").split("/")[1].replace("jpeg", "jpg");
-      downloadDataUrl(selected.resultDataUrl, `${studioFilename()}.${ext}`);
+      downloadDataUrl(src, `${studioFilename()}.jpg`);
     } finally {
       setHumanizing(false);
     }
@@ -202,40 +205,42 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
             )}
           </div>
 
-          {/* Action buttons below image */}
-          {hasResult && !isProcessing && (
+          {/* Action buttons below image – always visible when an image is selected */}
+          {!isProcessing && (
             <>
-            <div className="mt-3 flex gap-2 flex-shrink-0">
-              {/* Toggle Original / Ergebnis */}
-              <button
-                onClick={() => setShowOriginal((v) => !v)}
-                className={cn(
-                  "flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-medium border transition-all",
-                  viewingOriginal
-                    ? "border-[#1d4ed8]/40 text-[#60a5fa] bg-[#1d4ed8]/10"
-                    : "border-white/10 text-white/50 hover:text-white hover:border-white/20"
-                )}
-              >
-                {viewingOriginal ? <WandSparklesIcon size={11} /> : <ImageIcon size={11} />}
-                {viewingOriginal ? "Ergebnis" : "Original"}
-              </button>
-              <button
-                onClick={() => useResultAsBase(selected.id)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-medium border border-[#1d4ed8]/25 text-[#60a5fa] hover:bg-[#1d4ed8]/10 transition-all"
-              >
-                <RefreshCwIcon size={11} />
-                Als Original
-              </button>
-              <button
-                onClick={() => setLightbox(true)}
-                className="w-9 flex items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white hover:border-white/20 transition-all"
-              >
-                <MaximizeIcon size={13} />
-              </button>
-            </div>
+            {/* Result toggle + Als Original – only when result exists */}
+            {hasResult && (
+              <div className="mt-3 flex gap-2 flex-shrink-0">
+                <button
+                  onClick={() => setShowOriginal((v) => !v)}
+                  className={cn(
+                    "flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-medium border transition-all",
+                    viewingOriginal
+                      ? "border-[#1d4ed8]/40 text-[#60a5fa] bg-[#1d4ed8]/10"
+                      : "border-white/10 text-white/50 hover:text-white hover:border-white/20"
+                  )}
+                >
+                  {viewingOriginal ? <WandSparklesIcon size={11} /> : <ImageIcon size={11} />}
+                  {viewingOriginal ? "Ergebnis" : "Original"}
+                </button>
+                <button
+                  onClick={() => useResultAsBase(selected.id)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-medium border border-[#1d4ed8]/25 text-[#60a5fa] hover:bg-[#1d4ed8]/10 transition-all"
+                >
+                  <RefreshCwIcon size={11} />
+                  Als Original
+                </button>
+                <button
+                  onClick={() => setLightbox(true)}
+                  className="w-9 flex items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white hover:border-white/20 transition-all"
+                >
+                  <MaximizeIcon size={13} />
+                </button>
+              </div>
+            )}
 
-            {/* Crop ratio + Download row */}
-            <div className="flex items-center gap-1.5 mt-1.5">
+            {/* Crop ratio + Download – always shown */}
+            <div className={cn("flex items-center gap-1.5 flex-shrink-0", hasResult ? "mt-1.5" : "mt-3")}>
               <div className="flex items-center gap-1 p-0.5 rounded-lg border border-white/10 bg-white/[0.03]">
                 {(["none", "1:1", "4:5"] as const).map((r) => (
                   <button
@@ -252,6 +257,14 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
                   </button>
                 ))}
               </div>
+              {!hasResult && (
+                <button
+                  onClick={() => setLightbox(true)}
+                  className="w-9 flex items-center justify-center rounded-xl border border-white/10 text-white/60 hover:text-white hover:border-white/20 transition-all"
+                >
+                  <MaximizeIcon size={13} />
+                </button>
+              )}
               <button
                 onClick={handleDownload}
                 disabled={humanizing}
@@ -449,28 +462,31 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
           )}
         </div>
 
-        {/* Mobile action buttons */}
-        {hasResult && !isProcessing && (
+        {/* Mobile action buttons – always visible when not processing */}
+        {!isProcessing && (
           <div className="flex flex-col gap-1.5 px-4 py-2 flex-shrink-0 border-b" style={{ borderColor: "var(--glass-border)" }}>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowOriginal((v) => !v)}
-                className={cn(
-                  "flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium border transition-all",
-                  viewingOriginal ? "border-[#1d4ed8]/40 text-[#60a5fa] bg-[#1d4ed8]/10" : "border-white/10 text-white/50"
-                )}
-              >
-                {viewingOriginal ? <WandSparklesIcon size={11} /> : <ImageIcon size={11} />}
-                {viewingOriginal ? "KI" : "Original"}
-              </button>
-              <button onClick={() => useResultAsBase(selected.id)} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-medium border border-[#1d4ed8]/25 text-[#60a5fa] hover:bg-[#1d4ed8]/10 transition-all">
-                <RefreshCwIcon size={11} />Als Original
-              </button>
-              <button onClick={() => setLightbox(true)} className="w-9 flex items-center justify-center rounded-lg border border-white/10 text-white/60 hover:text-white transition-all">
-                <MaximizeIcon size={13} />
-              </button>
-            </div>
-            {/* Crop + Download row (mobile) */}
+            {/* Result toggle + Als Original – only when result exists */}
+            {hasResult && (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowOriginal((v) => !v)}
+                  className={cn(
+                    "flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium border transition-all",
+                    viewingOriginal ? "border-[#1d4ed8]/40 text-[#60a5fa] bg-[#1d4ed8]/10" : "border-white/10 text-white/50"
+                  )}
+                >
+                  {viewingOriginal ? <WandSparklesIcon size={11} /> : <ImageIcon size={11} />}
+                  {viewingOriginal ? "KI" : "Original"}
+                </button>
+                <button onClick={() => useResultAsBase(selected.id)} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-medium border border-[#1d4ed8]/25 text-[#60a5fa] hover:bg-[#1d4ed8]/10 transition-all">
+                  <RefreshCwIcon size={11} />Als Original
+                </button>
+                <button onClick={() => setLightbox(true)} className="w-9 flex items-center justify-center rounded-lg border border-white/10 text-white/60 hover:text-white transition-all">
+                  <MaximizeIcon size={13} />
+                </button>
+              </div>
+            )}
+            {/* Crop + Download – always shown */}
             <div className="flex items-center gap-1.5">
               <div className="flex items-center gap-0.5 p-0.5 rounded-lg border border-white/10 bg-white/[0.03]">
                 {(["none", "1:1", "4:5"] as const).map((r) => (
@@ -486,6 +502,11 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
                   </button>
                 ))}
               </div>
+              {!hasResult && (
+                <button onClick={() => setLightbox(true)} className="w-9 flex items-center justify-center rounded-lg border border-white/10 text-white/60 hover:text-white transition-all">
+                  <MaximizeIcon size={13} />
+                </button>
+              )}
               <button onClick={handleDownload} disabled={humanizing} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-medium border border-white/10 text-white/60 hover:text-white transition-all disabled:opacity-50">
                 {humanizing ? <LoaderIcon size={11} className="animate-spin" /> : <DownloadIcon size={11} />}
                 {humanizing ? "…" : "Download"}
