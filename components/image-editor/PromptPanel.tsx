@@ -112,14 +112,15 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
   }
 
   const isProcessing = selected.status === "processing";
-  const hasResult = !!selected.resultDataUrl;
+  // hasResult: check both in-memory data URL AND persisted Supabase URL (survives reload)
+  const hasResult = !!selected.resultDataUrl || !!selected.resultUrl;
   // When result exists and user hasn't toggled to original: show result
   const viewingOriginal = hasResult && showOriginal;
   const originalSrc = selected.originalDataUrl || selected.originalUrl || "";
-  const previewSrc = viewingOriginal ? originalSrc : (hasResult ? selected.resultDataUrl! : originalSrc);
+  const resultSrc = selected.resultDataUrl || selected.resultUrl || "";
+  const previewSrc = viewingOriginal ? originalSrc : (hasResult ? resultSrc : originalSrc);
 
   const handleDownload = async () => {
-    // Use result if available, otherwise fall back to original
     const src = previewSrc;
     if (!src) return;
     setHumanizing(true);
@@ -129,13 +130,20 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
       if (cropRatio !== "none") {
         processed = await cropImage(processed, cropRatio);
       }
-      // Step 2: humanize (noise + compression artifacts) – only for AI-generated results
-      if (hasResult && !viewingOriginal) {
-        processed = await humanizeImage(processed);
+      // Step 2: humanize – applies to AI results OR any image the user chooses to process
+      const shouldHumanize = hasResult && !viewingOriginal;
+      if (shouldHumanize) {
+        try {
+          processed = await humanizeImage(processed);
+        } catch (humanizeErr) {
+          console.warn("[download] humanize failed, using unprocessed:", humanizeErr);
+          // Don't fall back silently – continue with unhumanized (crop already applied)
+        }
       }
       const suffix = cropRatio !== "none" ? ` ${cropRatio}` : "";
       downloadDataUrl(processed, `${studioFilename()}${suffix}.jpg`);
-    } catch {
+    } catch (err) {
+      console.error("[download] failed:", err);
       downloadDataUrl(src, `${studioFilename()}.jpg`);
     } finally {
       setHumanizing(false);

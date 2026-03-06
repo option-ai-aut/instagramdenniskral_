@@ -77,6 +77,7 @@ export function nearestAspectRatio(w: number, h: number): string {
 export function getImageAspectRatio(src: string): Promise<string> {
   return new Promise((resolve) => {
     const img = new window.Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => resolve(nearestAspectRatio(img.naturalWidth, img.naturalHeight));
     img.onerror = () => resolve("1:1");
     img.src = src;
@@ -145,6 +146,7 @@ export function compressImage(
 export function cropImage(dataUrl: string, ratio: "1:1" | "4:5"): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new window.Image();
+    img.crossOrigin = "anonymous";
     img.onload = () => {
       const { naturalWidth: w, naturalHeight: h } = img;
       const [rw, rh] = ratio.split(":").map(Number);
@@ -211,6 +213,8 @@ export function cropImage(dataUrl: string, ratio: "1:1" | "4:5"): Promise<string
 export function humanizeImage(dataUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new window.Image();
+    // Needed for Supabase/CDN URLs so canvas.getImageData() doesn't throw SecurityError
+    img.crossOrigin = "anonymous";
 
     img.onload = () => {
       const W = img.naturalWidth;
