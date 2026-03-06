@@ -210,15 +210,16 @@ export function cropImage(dataUrl: string, ratio: "1:1" | "4:5"): Promise<string
  * Processing time ≈ 1–4 s for a 2 K image.
  */
 /**
- * Breaks AI-detection fingerprints via a multi-step pipeline:
+ * Breaks AI-detection fingerprints via a multi-step photographic simulation:
  *
- *  1. Downscale to 82 % → upscale back to 100 %
- *     Forces bicubic interpolation across every pixel – the single most
- *     effective technique against neural-net AI detectors.
- *  2. Chromatic aberration: R +2 px, B -2 px (lens dispersion simulation)
- *  3. Luminance + chroma noise (ISO sensor variance)
- *  4. Global color drift (white-balance / lens tint)
- *  5. Re-encode as JPEG at 82 % (strong DCT block artefacts)
+ *  1. Resize pass 1: 78 % → 100 % (bicubic – destroys diffusion-model patterns)
+ *  2. Lens blur: 0.5 px Gaussian (simulates real optics; breaks sharp AI edges)
+ *  3. Resize pass 2: 92 % → 100 % (second interpolation round)
+ *  4. Luminance-dependent noise: more in shadows (±28), less in highlights (±6)
+ *     – exactly matches photon shot noise + read noise of a real camera sensor
+ *  5. Chromatic aberration: R +3 px, B −3 px (stronger lens dispersion)
+ *  6. Global color drift (lens tint / white-balance variance)
+ *  7. Re-encode as JPEG at 65 % (strong DCT quantisation artefacts)
  *
  * Always receives a data URL – caller must pre-fetch remote URLs first.
  */
@@ -233,45 +234,49 @@ export function humanizeImage(dataUrl: string): Promise<string> {
           const H = img.naturalHeight;
           if (W === 0 || H === 0) { reject(new Error("Image has zero dimensions")); return; }
 
-          // ── Step 1: Downscale → upscale (forces interpolation artefacts) ──
-          const SCALE = 0.82;
-          const Ws = Math.round(W * SCALE);
-          const Hs = Math.round(H * SCALE);
+          const smooth = (c: HTMLCanvasElement) => {
+            const ctx = c.getContext("2d")!;
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            return ctx;
+          };
 
-          // Small canvas
-          const cSmall = document.createElement("canvas");
-          cSmall.width = Ws; cSmall.height = Hs;
-          const ctxS = cSmall.getContext("2d");
-          if (!ctxS) { reject(new Error("Canvas unavailable")); return; }
-          ctxS.imageSmoothingEnabled = true;
-          ctxS.imageSmoothingQuality = "high";
-          ctxS.drawImage(img, 0, 0, Ws, Hs);
+          // ── Resize pass 1: 78 % ──────────────────────────────────────────
+          const S1 = 0.78;
+          const c1 = document.createElement("canvas");
+          c1.width = Math.round(W * S1); c1.height = Math.round(H * S1);
+          smooth(c1).drawImage(img, 0, 0, c1.width, c1.height);
 
-          // Full canvas – draw scaled image back up
-          const canvas = document.createElement("canvas");
-          canvas.width = W; canvas.height = H;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) { reject(new Error("Canvas 2d unavailable")); return; }
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = "high";
-          ctx.drawImage(cSmall, 0, 0, W, H);
+          const cFull = document.createElement("canvas");
+          cFull.width = W; cFull.height = H;
+          smooth(cFull).drawImage(c1, 0, 0, W, H);
 
-          // ── Step 2-4: CA + noise + drift ─────────────────────────────────
+          // ── Lens blur 0.5 px ─────────────────────────────────────────────
+          const ctxFull = cFull.getContext("2d")!;
+          ctxFull.filter = "blur(0.5px)";
+          ctxFull.drawImage(cFull, 0, 0);
+          ctxFull.filter = "none";
+
+          // ── Resize pass 2: 92 % ──────────────────────────────────────────
+          const S2 = 0.92;
+          const c2 = document.createElement("canvas");
+          c2.width = Math.round(W * S2); c2.height = Math.round(H * S2);
+          smooth(c2).drawImage(cFull, 0, 0, c2.width, c2.height);
+          smooth(cFull).drawImage(c2, 0, 0, W, H);
+
+          // ── Read pixels ──────────────────────────────────────────────────
           let srcData: ImageData;
-          try {
-            srcData = ctx.getImageData(0, 0, W, H);
-          } catch (e) {
-            reject(new Error(`getImageData failed: ${e}`)); return;
-          }
+          try { srcData = ctxFull.getImageData(0, 0, W, H); }
+          catch (e) { reject(new Error(`getImageData failed: ${e}`)); return; }
 
           const s = srcData.data;
-          const out = ctx.createImageData(W, H);
+          const out = ctxFull.createImageData(W, H);
           const d = out.data;
 
-          const CA = 2;
-          const rDrift = (Math.random() - 0.5) * 10;
-          const gDrift = (Math.random() - 0.5) * 5;
-          const bDrift = (Math.random() - 0.5) * 10;
+          const CA = 3;                               // chromatic aberration px
+          const rDrift = (Math.random() - 0.5) * 12;
+          const gDrift = (Math.random() - 0.5) * 6;
+          const bDrift = (Math.random() - 0.5) * 12;
 
           for (let y = 0; y < H; y++) {
             for (let x = 0; x < W; x++) {
@@ -279,10 +284,13 @@ export function humanizeImage(dataUrl: string): Promise<string> {
               const rI = (y * W + Math.max(0,     x - CA)) * 4;
               const bI = (y * W + Math.min(W - 1, x + CA)) * 4;
 
-              const luma = (Math.random() - 0.5) * 20;
-              const rN   = luma + (Math.random() - 0.5) * 14;
-              const gN   = luma + (Math.random() - 0.5) * 8;
-              const bN   = luma + (Math.random() - 0.5) * 14;
+              // Luminance-dependent noise: dark pixels → more noise (shot noise)
+              const luma01 = (s[i] * 0.299 + s[i+1] * 0.587 + s[i+2] * 0.114) / 255;
+              const noiseAmp = 6 + (1 - luma01) * 22;   // ±6 highlights, ±28 shadows
+              const base = (Math.random() - 0.5) * noiseAmp * 2;
+              const rN = base + (Math.random() - 0.5) * noiseAmp * 0.6;
+              const gN = base + (Math.random() - 0.5) * noiseAmp * 0.4;
+              const bN = base + (Math.random() - 0.5) * noiseAmp * 0.6;
 
               d[i]     = Math.min(255, Math.max(0, s[rI]     + rN + rDrift));
               d[i + 1] = Math.min(255, Math.max(0, s[i + 1]  + gN + gDrift));
@@ -290,19 +298,19 @@ export function humanizeImage(dataUrl: string): Promise<string> {
               d[i + 3] = 255;
             }
           }
-          ctx.putImageData(out, 0, 0);
+          ctxFull.putImageData(out, 0, 0);
 
-          // ── Step 5: JPEG re-encode at 82 % ───────────────────────────────
-          canvas.toBlob(
+          // ── JPEG at 65 % ─────────────────────────────────────────────────
+          cFull.toBlob(
             (blob) => {
               if (!blob) { reject(new Error("toBlob returned null")); return; }
               const reader = new FileReader();
               reader.onload  = () => resolve(reader.result as string);
-              reader.onerror = (e) => reject(new Error(`FileReader error: ${e}`));
+              reader.onerror = (e) => reject(new Error(`FileReader: ${e}`));
               reader.readAsDataURL(blob);
             },
             "image/jpeg",
-            0.82
+            0.65
           );
         } catch (err) { reject(err); }
       };
