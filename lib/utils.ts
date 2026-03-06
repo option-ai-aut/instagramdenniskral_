@@ -325,7 +325,7 @@ export function humanizeImage(dataUrl: string): Promise<string> {
 
               // Bayer-like chroma noise: R and B channels noisier than G
               const luma01 = (s[i] * 0.299 + s[i+1] * 0.587 + s[i+2] * 0.114) / 255;
-              const amp = 1 + (1 - luma01) * 3; // ±1 highlights → ±4 shadows
+              const amp = 2 + (1 - luma01) * 8; // ±2 highlights → ±10 shadows
               const rN = (Math.random() - 0.5) * amp * 2.2;
               const gN = (Math.random() - 0.5) * amp * 0.9; // green noisier in Bayer
               const bN = (Math.random() - 0.5) * amp * 2.2;
