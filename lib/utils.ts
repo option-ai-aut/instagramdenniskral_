@@ -274,9 +274,9 @@ export function humanizeImage(dataUrl: string): Promise<string> {
           const d = out.data;
 
           const CA = 3;                               // chromatic aberration px
-          const rDrift = (Math.random() - 0.5) * 12;
-          const gDrift = (Math.random() - 0.5) * 6;
-          const bDrift = (Math.random() - 0.5) * 12;
+          const rDrift = (Math.random() - 0.5) * 6;
+          const gDrift = (Math.random() - 0.5) * 3;
+          const bDrift = (Math.random() - 0.5) * 6;
 
           for (let y = 0; y < H; y++) {
             for (let x = 0; x < W; x++) {
@@ -286,7 +286,7 @@ export function humanizeImage(dataUrl: string): Promise<string> {
 
               // Luminance-dependent noise: dark pixels → more noise (shot noise)
               const luma01 = (s[i] * 0.299 + s[i+1] * 0.587 + s[i+2] * 0.114) / 255;
-              const noiseAmp = 6 + (1 - luma01) * 22;   // ±6 highlights, ±28 shadows
+              const noiseAmp = 3 + (1 - luma01) * 9;    // ±3 highlights, ±12 shadows
               const base = (Math.random() - 0.5) * noiseAmp * 2;
               const rN = base + (Math.random() - 0.5) * noiseAmp * 0.6;
               const gN = base + (Math.random() - 0.5) * noiseAmp * 0.4;
@@ -310,7 +310,7 @@ export function humanizeImage(dataUrl: string): Promise<string> {
               reader.readAsDataURL(blob);
             },
             "image/jpeg",
-            0.65
+            0.82
           );
         } catch (err) { reject(err); }
       };
