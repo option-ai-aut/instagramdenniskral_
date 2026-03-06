@@ -16,7 +16,7 @@ import {
   ImageIcon,
   WandSparklesIcon,
 } from "lucide-react";
-import { cn, downloadDataUrl, studioFilename } from "@/lib/utils";
+import { cn, downloadDataUrl, studioFilename, humanizeImage } from "@/lib/utils";
 import { useImageEditorStore } from "@/store/imageEditorStore";
 
 type Props = {
@@ -116,9 +116,21 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
   const originalSrc = selected.originalDataUrl || selected.originalUrl || "";
   const previewSrc = viewingOriginal ? originalSrc : (hasResult ? selected.resultDataUrl! : originalSrc);
 
-  const handleDownload = () => {
-    const ext = (selected.resultMimeType ?? "image/png").split("/")[1].replace("jpeg", "jpg");
-    downloadDataUrl(selected.resultDataUrl!, `${studioFilename()}.${ext}`);
+  const [humanizing, setHumanizing] = useState(false);
+
+  const handleDownload = async () => {
+    if (!selected.resultDataUrl) return;
+    setHumanizing(true);
+    try {
+      const humanized = await humanizeImage(selected.resultDataUrl);
+      downloadDataUrl(humanized, `${studioFilename()}.jpg`);
+    } catch {
+      // Fallback: download original without processing
+      const ext = (selected.resultMimeType ?? "image/png").split("/")[1].replace("jpeg", "jpg");
+      downloadDataUrl(selected.resultDataUrl, `${studioFilename()}.${ext}`);
+    } finally {
+      setHumanizing(false);
+    }
   };
 
   const isAlreadySaved = savedPrompts.some(
@@ -209,10 +221,11 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
               </button>
               <button
                 onClick={handleDownload}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-medium border border-white/10 text-white/60 hover:text-white hover:border-white/20 transition-all"
+                disabled={humanizing}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-medium border border-white/10 text-white/60 hover:text-white hover:border-white/20 transition-all disabled:opacity-50"
               >
-                <DownloadIcon size={11} />
-                Download
+                {humanizing ? <LoaderIcon size={11} className="animate-spin" /> : <DownloadIcon size={11} />}
+                {humanizing ? "Wird verarbeitet…" : "Download"}
               </button>
               <button
                 onClick={() => setLightbox(true)}
@@ -424,8 +437,9 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
             <button onClick={() => useResultAsBase(selected.id)} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-medium border border-[#1d4ed8]/25 text-[#60a5fa] hover:bg-[#1d4ed8]/10 transition-all">
               <RefreshCwIcon size={11} />Als Original
             </button>
-            <button onClick={handleDownload} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-medium border border-white/10 text-white/60 hover:text-white transition-all">
-              <DownloadIcon size={11} />Download
+            <button onClick={handleDownload} disabled={humanizing} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-medium border border-white/10 text-white/60 hover:text-white transition-all disabled:opacity-50">
+              {humanizing ? <LoaderIcon size={11} className="animate-spin" /> : <DownloadIcon size={11} />}
+              {humanizing ? "…" : "Download"}
             </button>
             <button onClick={() => setLightbox(true)} className="w-9 flex items-center justify-center rounded-lg border border-white/10 text-white/60 hover:text-white transition-all">
               <MaximizeIcon size={13} />
@@ -537,9 +551,10 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
             />
             <button
               onClick={handleDownload}
-              className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 border border-white/10 text-xs text-white/70 hover:text-white transition-colors"
+              disabled={humanizing}
+              className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 border border-white/10 text-xs text-white/70 hover:text-white transition-colors disabled:opacity-50"
             >
-              <DownloadIcon size={12} />
+              {humanizing ? <LoaderIcon size={12} className="animate-spin" /> : <DownloadIcon size={12} />}
               Download
             </button>
           </div>
