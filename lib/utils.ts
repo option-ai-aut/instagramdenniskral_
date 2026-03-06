@@ -136,6 +136,59 @@ export function compressImage(
   });
 }
 
+// ── Center-crop ──────────────────────────────────────────────────────────────
+
+/**
+ * Center-crops a data URL to the given aspect ratio (e.g. "1:1" or "4:5").
+ * Returns the cropped image as a JPEG data URL.
+ */
+export function cropImage(dataUrl: string, ratio: "1:1" | "4:5"): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image();
+    img.onload = () => {
+      const { naturalWidth: w, naturalHeight: h } = img;
+      const [rw, rh] = ratio.split(":").map(Number);
+      const targetRatio = rw / rh;
+      const srcRatio    = w / h;
+
+      let cropW: number, cropH: number;
+      if (srcRatio > targetRatio) {
+        // wider than target → crop sides
+        cropH = h;
+        cropW = Math.round(h * targetRatio);
+      } else {
+        // taller than target → crop top/bottom
+        cropW = w;
+        cropH = Math.round(w / targetRatio);
+      }
+
+      const offsetX = Math.floor((w - cropW) / 2);
+      const offsetY = Math.floor((h - cropH) / 2);
+
+      const canvas = document.createElement("canvas");
+      canvas.width  = cropW;
+      canvas.height = cropH;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { reject(new Error("Canvas not available")); return; }
+      ctx.drawImage(img, offsetX, offsetY, cropW, cropH, 0, 0, cropW, cropH);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) { reject(new Error("toBlob failed")); return; }
+          const reader = new FileReader();
+          reader.onload  = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        },
+        "image/jpeg",
+        0.97
+      );
+    };
+    img.onerror = () => reject(new Error("Image load failed"));
+    img.src = dataUrl;
+  });
+}
+
 // ── AI-detection evasion ─────────────────────────────────────────────────────
 
 /**
