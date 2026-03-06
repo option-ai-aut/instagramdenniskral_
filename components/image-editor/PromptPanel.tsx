@@ -37,6 +37,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false);
+  const [humanizing, setHumanizing] = useState(false);
 
   const fetchPrompts = useCallback(async () => {
     try {
@@ -115,8 +116,6 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
   const viewingOriginal = hasResult && showOriginal;
   const originalSrc = selected.originalDataUrl || selected.originalUrl || "";
   const previewSrc = viewingOriginal ? originalSrc : (hasResult ? selected.resultDataUrl! : originalSrc);
-
-  const [humanizing, setHumanizing] = useState(false);
 
   const handleDownload = async () => {
     if (!selected.resultDataUrl) return;
