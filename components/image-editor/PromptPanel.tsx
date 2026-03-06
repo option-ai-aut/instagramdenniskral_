@@ -155,20 +155,64 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
         <div className="flex-1 flex flex-col min-w-0 p-4">
           <div
             className={cn(
-              "flex-1 min-h-0 relative rounded-2xl overflow-hidden border",
+              "flex-1 min-h-0 relative rounded-2xl overflow-hidden border cursor-zoom-in",
               hasResult && !viewingOriginal ? "border-[#1d4ed8]/30" : "border-white/[0.06]",
-              hasResult ? "cursor-zoom-in" : ""
             )}
-            onClick={() => hasResult && !viewingOriginal && setLightbox(true)}
+            onClick={() => !isProcessing && setLightbox(true)}
           >
-            <Image
-              src={previewSrc}
-              alt={viewingOriginal ? "Original" : hasResult ? "KI Ergebnis" : "Original"}
-              fill
-              className="object-contain"
-              sizes="(max-width: 1280px) 60vw, 800px"
-              unoptimized
-            />
+            {/* Normal view (no crop selected) */}
+            {cropRatio === "none" && (
+              <Image
+                src={previewSrc}
+                alt={viewingOriginal ? "Original" : hasResult ? "KI Ergebnis" : "Original"}
+                fill
+                className="object-contain"
+                sizes="(max-width: 1280px) 60vw, 800px"
+                unoptimized
+              />
+            )}
+
+            {/* Crop preview – dimmed full image + sharp crop window */}
+            {cropRatio !== "none" && (
+              <>
+                {/* Blurred/dimmed background showing full image */}
+                <Image
+                  src={previewSrc}
+                  alt="background"
+                  fill
+                  className="object-cover opacity-[0.12] blur-sm"
+                  sizes="(max-width: 1280px) 60vw, 800px"
+                  unoptimized
+                />
+                {/* Dark vignette overlay */}
+                <div className="absolute inset-0 bg-black/50" />
+                {/* Crop window centered */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div
+                    style={{
+                      aspectRatio: cropRatio === "1:1" ? "1 / 1" : "4 / 5",
+                      height: "100%",
+                      maxWidth: "100%",
+                      position: "relative",
+                    }}
+                    className="overflow-hidden rounded-xl ring-2 ring-white/20"
+                  >
+                    <Image
+                      src={previewSrc}
+                      alt="crop preview"
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 1280px) 60vw, 800px"
+                      unoptimized
+                    />
+                  </div>
+                </div>
+                {/* Crop ratio label */}
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-black/70 border border-white/10 text-[10px] text-white/60 font-medium">
+                  {cropRatio}
+                </div>
+              </>
+            )}
 
             {isProcessing && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/65 backdrop-blur-sm">
@@ -196,7 +240,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
             )}
 
             {/* Maximize hint */}
-            {hasResult && !isProcessing && !viewingOriginal && (
+            {!isProcessing && (
               <div className="absolute top-3 right-3">
                 <div className="w-7 h-7 rounded-lg bg-black/60 border border-white/10 flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity">
                   <MaximizeIcon size={12} className="text-white" />
@@ -430,21 +474,39 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
 
         {/* Image – fixed height on mobile */}
         <div
-          className={cn(
-            "relative flex-shrink-0 border-b",
-            "h-[45vw] min-h-[180px] max-h-[280px]",
-          )}
+          className="relative flex-shrink-0 border-b h-[45vw] min-h-[180px] max-h-[280px] cursor-zoom-in"
           style={{ borderColor: "var(--glass-border)" }}
-          onClick={() => hasResult && !viewingOriginal && setLightbox(true)}
+          onClick={() => !isProcessing && setLightbox(true)}
         >
-          <Image
-            src={previewSrc}
-            alt={viewingOriginal ? "Original" : hasResult ? "KI Ergebnis" : "Original"}
-            fill
-            className={cn("object-contain", hasResult && !viewingOriginal && "cursor-zoom-in")}
-            sizes="100vw"
-            unoptimized
-          />
+          {/* Normal view */}
+          {cropRatio === "none" && (
+            <Image
+              src={previewSrc}
+              alt={viewingOriginal ? "Original" : hasResult ? "KI Ergebnis" : "Original"}
+              fill
+              className="object-contain"
+              sizes="100vw"
+              unoptimized
+            />
+          )}
+
+          {/* Crop preview (mobile) */}
+          {cropRatio !== "none" && (
+            <>
+              <Image src={previewSrc} alt="bg" fill className="object-cover opacity-[0.12] blur-sm" sizes="100vw" unoptimized />
+              <div className="absolute inset-0 bg-black/50" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div
+                  style={{ aspectRatio: cropRatio === "1:1" ? "1 / 1" : "4 / 5", height: "100%", maxWidth: "100%", position: "relative" }}
+                  className="overflow-hidden rounded-lg ring-2 ring-white/20"
+                >
+                  <Image src={previewSrc} alt="crop preview" fill className="object-cover" sizes="100vw" unoptimized />
+                </div>
+              </div>
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-black/70 border border-white/10 text-[10px] text-white/60 font-medium">{cropRatio}</div>
+            </>
+          )}
+
           {isProcessing && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/65 backdrop-blur-sm">
               <LoaderIcon size={22} className="text-[#60a5fa] animate-spin" />
@@ -600,7 +662,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
       </div>
 
       {/* Lightbox */}
-      {lightbox && hasResult && (
+      {lightbox && previewSrc && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
           onClick={() => setLightbox(false)}
@@ -613,8 +675,8 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
           </button>
           <div className="max-w-[90vw] max-h-[90vh] relative" onClick={(e) => e.stopPropagation()}>
             <img
-              src={selected.resultDataUrl!}
-              alt="Full size result"
+              src={previewSrc}
+              alt="Vollansicht"
               className="max-w-full max-h-[90vh] object-contain rounded-2xl"
             />
             <button
