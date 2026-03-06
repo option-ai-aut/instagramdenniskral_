@@ -210,14 +210,17 @@ export function cropImage(dataUrl: string, ratio: "1:1" | "4:5"): Promise<string
  * Processing time ≈ 1–4 s for a 2 K image.
  */
 /**
- * Applies pixel-level transformations to break AI-detection fingerprints.
- * Always receives a data URL (caller pre-fetches remote URLs).
+ * Breaks AI-detection fingerprints via a multi-step pipeline:
  *
- * Single-pass approach (no nested image loads) for maximum reliability:
- *  1. Chromatic aberration  – R +2px, B -2px
- *  2. Luminance + chroma noise
- *  3. Global color drift
- *  4. Re-encode as JPEG at 88 %
+ *  1. Downscale to 82 % → upscale back to 100 %
+ *     Forces bicubic interpolation across every pixel – the single most
+ *     effective technique against neural-net AI detectors.
+ *  2. Chromatic aberration: R +2 px, B -2 px (lens dispersion simulation)
+ *  3. Luminance + chroma noise (ISO sensor variance)
+ *  4. Global color drift (white-balance / lens tint)
+ *  5. Re-encode as JPEG at 82 % (strong DCT block artefacts)
+ *
+ * Always receives a data URL – caller must pre-fetch remote URLs first.
  */
 export function humanizeImage(dataUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -228,34 +231,44 @@ export function humanizeImage(dataUrl: string): Promise<string> {
         try {
           const W = img.naturalWidth;
           const H = img.naturalHeight;
+          if (W === 0 || H === 0) { reject(new Error("Image has zero dimensions")); return; }
 
-          if (W === 0 || H === 0) {
-            reject(new Error("Image has zero dimensions"));
-            return;
-          }
+          // ── Step 1: Downscale → upscale (forces interpolation artefacts) ──
+          const SCALE = 0.82;
+          const Ws = Math.round(W * SCALE);
+          const Hs = Math.round(H * SCALE);
 
+          // Small canvas
+          const cSmall = document.createElement("canvas");
+          cSmall.width = Ws; cSmall.height = Hs;
+          const ctxS = cSmall.getContext("2d");
+          if (!ctxS) { reject(new Error("Canvas unavailable")); return; }
+          ctxS.imageSmoothingEnabled = true;
+          ctxS.imageSmoothingQuality = "high";
+          ctxS.drawImage(img, 0, 0, Ws, Hs);
+
+          // Full canvas – draw scaled image back up
           const canvas = document.createElement("canvas");
-          canvas.width  = W;
-          canvas.height = H;
+          canvas.width = W; canvas.height = H;
           const ctx = canvas.getContext("2d");
-          if (!ctx) { reject(new Error("Canvas 2d context unavailable")); return; }
+          if (!ctx) { reject(new Error("Canvas 2d unavailable")); return; }
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          ctx.drawImage(cSmall, 0, 0, W, H);
 
-          ctx.drawImage(img, 0, 0);
-
-          // Read source pixels
+          // ── Step 2-4: CA + noise + drift ─────────────────────────────────
           let srcData: ImageData;
           try {
             srcData = ctx.getImageData(0, 0, W, H);
           } catch (e) {
-            reject(new Error(`getImageData failed (tainted canvas?): ${e}`));
-            return;
+            reject(new Error(`getImageData failed: ${e}`)); return;
           }
 
           const s = srcData.data;
           const out = ctx.createImageData(W, H);
-          const d   = out.data;
+          const d = out.data;
 
-          const CA   = 2;                            // chromatic aberration shift px
+          const CA = 2;
           const rDrift = (Math.random() - 0.5) * 10;
           const gDrift = (Math.random() - 0.5) * 5;
           const bDrift = (Math.random() - 0.5) * 10;
@@ -263,13 +276,13 @@ export function humanizeImage(dataUrl: string): Promise<string> {
           for (let y = 0; y < H; y++) {
             for (let x = 0; x < W; x++) {
               const i  = (y * W + x) * 4;
-              const rI = (y * W + Math.max(0,     x - CA)) * 4; // R from x-CA
-              const bI = (y * W + Math.min(W - 1, x + CA)) * 4; // B from x+CA
+              const rI = (y * W + Math.max(0,     x - CA)) * 4;
+              const bI = (y * W + Math.min(W - 1, x + CA)) * 4;
 
-              const luma = (Math.random() - 0.5) * 24;
-              const rN   = luma + (Math.random() - 0.5) * 16;
-              const gN   = luma + (Math.random() - 0.5) * 10;
-              const bN   = luma + (Math.random() - 0.5) * 16;
+              const luma = (Math.random() - 0.5) * 20;
+              const rN   = luma + (Math.random() - 0.5) * 14;
+              const gN   = luma + (Math.random() - 0.5) * 8;
+              const bN   = luma + (Math.random() - 0.5) * 14;
 
               d[i]     = Math.min(255, Math.max(0, s[rI]     + rN + rDrift));
               d[i + 1] = Math.min(255, Math.max(0, s[i + 1]  + gN + gDrift));
@@ -277,30 +290,26 @@ export function humanizeImage(dataUrl: string): Promise<string> {
               d[i + 3] = 255;
             }
           }
-
           ctx.putImageData(out, 0, 0);
 
+          // ── Step 5: JPEG re-encode at 82 % ───────────────────────────────
           canvas.toBlob(
             (blob) => {
-              if (!blob) { reject(new Error("canvas.toBlob returned null")); return; }
+              if (!blob) { reject(new Error("toBlob returned null")); return; }
               const reader = new FileReader();
               reader.onload  = () => resolve(reader.result as string);
-              reader.onerror = (e) => reject(new Error(`FileReader failed: ${e}`));
+              reader.onerror = (e) => reject(new Error(`FileReader error: ${e}`));
               reader.readAsDataURL(blob);
             },
             "image/jpeg",
-            0.88
+            0.82
           );
-        } catch (innerErr) {
-          reject(innerErr);
-        }
+        } catch (err) { reject(err); }
       };
 
-      img.onerror = (e) => reject(new Error(`Image failed to load: ${e}`));
+      img.onerror = (e) => reject(new Error(`Image load failed: ${e}`));
       img.src = dataUrl;
-    } catch (outerErr) {
-      reject(outerErr);
-    }
+    } catch (err) { reject(err); }
   });
 }
 

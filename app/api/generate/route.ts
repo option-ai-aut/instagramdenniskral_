@@ -82,20 +82,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    let savedResultUrl: string | undefined;
     if (isRealDbId) {
       try {
         const path = `${SYSTEM_USER_ID}/results/${imageItemId}-${Date.now()}.png`;
-        const resultUrl = await uploadBase64ToSupabase(result.base64, path, result.mimeType);
+        savedResultUrl = await uploadBase64ToSupabase(result.base64, path, result.mimeType);
         await db
           .from("ImageItem")
-          .update({ resultUrl, status: "done", updatedAt: now() })
+          .update({ resultUrl: savedResultUrl, status: "done", updatedAt: now() })
           .eq("id", imageItemId);
       } catch {
         // DB update failure is non-fatal – result still returned to client
       }
     }
 
-    return NextResponse.json({ success: true, resultBase64: result.base64, mimeType: result.mimeType });
+    return NextResponse.json({ success: true, resultBase64: result.base64, mimeType: result.mimeType, resultUrl: savedResultUrl });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const stack = err instanceof Error ? err.stack : undefined;

@@ -173,10 +173,10 @@ export default function ImageEditorPage() {
         throw new Error(error ?? "Generation failed");
       }
 
-      const { resultBase64, mimeType } = await res.json();
+      const { resultBase64, mimeType, resultUrl } = await res.json();
       const resultDataUrl = base64ToDataUrl(resultBase64, mimeType);
 
-      updateImage(imageId, { status: "done", resultDataUrl, resultBase64, resultMimeType: mimeType });
+      updateImage(imageId, { status: "done", resultDataUrl, resultBase64, resultMimeType: mimeType, resultUrl });
       abortControllersRef.current.delete(imageId);
       setMobileTab("prompt");
     } catch (err) {
