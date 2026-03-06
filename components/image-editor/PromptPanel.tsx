@@ -204,6 +204,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
 
           {/* Action buttons below image */}
           {hasResult && !isProcessing && (
+            <>
             <div className="mt-3 flex gap-2 flex-shrink-0">
               {/* Toggle Original / Ergebnis */}
               <button
@@ -260,6 +261,7 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
                 {humanizing ? "Wird verarbeitet…" : "Download"}
               </button>
             </div>
+            </>
           )}
         </div>
 
