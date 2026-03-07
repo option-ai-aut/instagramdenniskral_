@@ -225,135 +225,123 @@ export function cropImage(dataUrl: string, ratio: "1:1" | "4:5"): Promise<string
  *
  * Always receives a data URL – caller must pre-fetch remote URLs first.
  */
-export function humanizeImage(dataUrl: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    try {
-      const img = new window.Image();
+export async function humanizeImage(dataUrl: string): Promise<string> {
+  // Helper: load a data/blob URL into an HTMLImageElement
+  const loadImg = (src: string): Promise<HTMLImageElement> =>
+    new Promise((res, rej) => {
+      const i = new window.Image();
+      i.onload = () => res(i);
+      i.onerror = (e) => rej(new Error(`Image load failed: ${e}`));
+      i.src = src;
+    });
 
-      img.onload = () => {
-        try {
-          const W = img.naturalWidth;
-          const H = img.naturalHeight;
-          if (W === 0 || H === 0) { reject(new Error("Image has zero dimensions")); return; }
+  // Helper: encode canvas to JPEG blob
+  const toBlob = (c: HTMLCanvasElement, q: number): Promise<Blob> =>
+    new Promise((res, rej) =>
+      c.toBlob((b) => (b ? res(b) : rej(new Error("toBlob null"))), "image/jpeg", q)
+    );
 
-          const smooth = (c: HTMLCanvasElement) => {
-            const ctx = c.getContext("2d")!;
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = "high";
-            return ctx;
-          };
+  // Helper: decode JPEG blob back to a canvas
+  const blobToCanvas = (blob: Blob): Promise<HTMLCanvasElement> => {
+    const url = URL.createObjectURL(blob);
+    return loadImg(url).then((i2) => {
+      URL.revokeObjectURL(url);
+      const c = document.createElement("canvas");
+      c.width = i2.naturalWidth; c.height = i2.naturalHeight;
+      c.getContext("2d")!.drawImage(i2, 0, 0);
+      return c;
+    }).catch((err) => { URL.revokeObjectURL(url); throw err; });
+  };
 
-          // Helper: encode canvas to blob at given quality
-          const toBlob = (c: HTMLCanvasElement, q: number): Promise<Blob> =>
-            new Promise((res, rej) => c.toBlob((b) => b ? res(b) : rej(new Error("toBlob null")), "image/jpeg", q));
+  // Helper: blob → data URL
+  const blobToDataUrl = (blob: Blob): Promise<string> =>
+    new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload  = () => res(r.result as string);
+      r.onerror = (e) => rej(new Error(`FileReader: ${e}`));
+      r.readAsDataURL(blob);
+    });
 
-          // Helper: load blob back onto a fresh canvas
-          const blobToCanvas = (blob: Blob): Promise<HTMLCanvasElement> =>
-            new Promise((res, rej) => {
-              const url = URL.createObjectURL(blob);
-              const i2 = new window.Image();
-              i2.onload = () => {
-                URL.revokeObjectURL(url);
-                const c = document.createElement("canvas");
-                c.width = i2.naturalWidth; c.height = i2.naturalHeight;
-                c.getContext("2d")!.drawImage(i2, 0, 0);
-                res(c);
-              };
-              i2.onerror = () => { URL.revokeObjectURL(url); rej(new Error("blobToCanvas load failed")); };
-              i2.src = url;
-            });
+  const smooth = (c: HTMLCanvasElement) => {
+    const ctx = c.getContext("2d")!;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    return ctx;
+  };
 
-          // ── Step 1: Gentle resize (92 % → 97 %) – changes pixel interpolation ──
-          // Two subtle passes so each is near-invisible but combined breaks AI grid
-          const c1 = document.createElement("canvas");
-          c1.width = Math.round(W * 0.92); c1.height = Math.round(H * 0.92);
-          smooth(c1).drawImage(img, 0, 0, c1.width, c1.height);
+  const img = await loadImg(dataUrl);
+  const W = img.naturalWidth;
+  const H = img.naturalHeight;
+  if (W === 0 || H === 0) throw new Error("Image has zero dimensions");
 
-          const cFull = document.createElement("canvas");
-          cFull.width = W; cFull.height = H;
-          smooth(cFull).drawImage(c1, 0, 0, W, H);
+  // ── Step 1: Two gentle resize passes (92 % → full, 97 % → full) ─────────
+  // Breaks diffusion-model pixel grid statistics via bicubic interpolation.
+  const c1 = document.createElement("canvas");
+  c1.width = Math.round(W * 0.92); c1.height = Math.round(H * 0.92);
+  smooth(c1).drawImage(img, 0, 0, c1.width, c1.height);
 
-          const c2 = document.createElement("canvas");
-          c2.width = Math.round(W * 0.97); c2.height = Math.round(H * 0.97);
-          smooth(c2).drawImage(cFull, 0, 0, c2.width, c2.height);
-          smooth(cFull).drawImage(c2, 0, 0, W, H);
+  const cFull = document.createElement("canvas");
+  cFull.width = W; cFull.height = H;
+  smooth(cFull).drawImage(c1, 0, 0, W, H);
 
-          const ctxFull = cFull.getContext("2d")!;
+  const c2 = document.createElement("canvas");
+  c2.width = Math.round(W * 0.97); c2.height = Math.round(H * 0.97);
+  smooth(c2).drawImage(cFull, 0, 0, c2.width, c2.height);
+  smooth(cFull).drawImage(c2, 0, 0, W, H);
 
-          // ── Step 2: S-curve + subtle CA (pixel-level, completely invisible) ─
-          let srcData: ImageData;
-          try { srcData = ctxFull.getImageData(0, 0, W, H); }
-          catch (e) { reject(new Error(`getImageData failed: ${e}`)); return; }
+  const ctxFull = cFull.getContext("2d")!;
 
-          const s = srcData.data;
-          const out = ctxFull.createImageData(W, H);
-          const d = out.data;
+  // ── Step 2: S-curve LUT + subtle CA (completely invisible) ───────────────
+  const srcData = ctxFull.getImageData(0, 0, W, H);
+  const s = srcData.data;
+  const out = ctxFull.createImageData(W, H);
+  const d = out.data;
 
-          // Precompute S-curve LUT (very subtle – mimics camera ISP tone mapping)
-          // v^0.97 in shadows, v^1.03 in highlights → barely visible S-shape
-          const lut = new Uint8Array(256);
-          for (let v = 0; v < 256; v++) {
-            const n = v / 255;
-            const curved = n < 0.5
-              ? 0.5 * Math.pow(2 * n, 0.96)
-              : 1 - 0.5 * Math.pow(2 * (1 - n), 0.96);
-            lut[v] = Math.round(Math.min(1, Math.max(0, curved)) * 255);
-          }
+  // Very subtle S-curve – mimics camera ISP tone mapping, imperceptible
+  const lut = new Uint8Array(256);
+  for (let v = 0; v < 256; v++) {
+    const n = v / 255;
+    const curved = n < 0.5
+      ? 0.5 * Math.pow(2 * n, 0.96)
+      : 1 - 0.5 * Math.pow(2 * (1 - n), 0.96);
+    lut[v] = Math.round(Math.min(1, Math.max(0, curved)) * 255);
+  }
 
-          const CA = 2; // chromatic aberration px – invisible at 2
-          const rDrift = (Math.random() - 0.5) * 4;
-          const gDrift = (Math.random() - 0.5) * 2;
-          const bDrift = (Math.random() - 0.5) * 4;
+  const CA = 2;
+  const rDrift = (Math.random() - 0.5) * 4;
+  const gDrift = (Math.random() - 0.5) * 2;
+  const bDrift = (Math.random() - 0.5) * 4;
 
-          for (let y = 0; y < H; y++) {
-            for (let x = 0; x < W; x++) {
-              const i  = (y * W + x) * 4;
-              const rI = (y * W + Math.max(0,     x - CA)) * 4;
-              const bI = (y * W + Math.min(W - 1, x + CA)) * 4;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i  = (y * W + x) * 4;
+      const rI = (y * W + Math.max(0,     x - CA)) * 4;
+      const bI = (y * W + Math.min(W - 1, x + CA)) * 4;
+      d[i]     = Math.min(255, Math.max(0, lut[s[rI]]     + rDrift));
+      d[i + 1] = Math.min(255, Math.max(0, lut[s[i + 1]]  + gDrift));
+      d[i + 2] = Math.min(255, Math.max(0, lut[s[bI + 2]] + bDrift));
+      d[i + 3] = 255;
+    }
+  }
+  ctxFull.putImageData(out, 0, 0);
 
-              d[i]     = Math.min(255, Math.max(0, lut[s[rI]]     + rDrift));
-              d[i + 1] = Math.min(255, Math.max(0, lut[s[i + 1]]  + gDrift));
-              d[i + 2] = Math.min(255, Math.max(0, lut[s[bI + 2]] + bDrift));
-              d[i + 3] = 255;
-            }
-          }
-          ctxFull.putImageData(out, 0, 0);
+  // ── Step 3: 3× JPEG micro-passes at 97 % ─────────────────────────────────
+  // Each encode/decode cycle adds DCT quantisation artefacts that are
+  // statistically indistinguishable from real multi-generation JPEG processing.
+  let current: HTMLCanvasElement = cFull;
+  try {
+    for (let pass = 0; pass < 3; pass++) {
+      const b = await toBlob(current, 0.97);
+      current = await blobToCanvas(b);
+    }
+  } catch (passErr) {
+    console.warn("[humanize] multi-pass fallback:", passErr);
+    current = cFull;
+  }
 
-          // ── Step 3: 3× JPEG micro-passes at 97 % ─────────────────────────
-          // Each encode/decode cycle adds DCT quantisation artefacts that are
-          // statistically indistinguishable from real camera JPEG processing.
-          // At 97 % per pass the visual degradation is imperceptible.
-          let current = cFull;
-          try {
-            for (let pass = 0; pass < 3; pass++) {
-              const b = await toBlob(current, 0.97);
-              current = await blobToCanvas(b);
-            }
-          } catch (passErr) {
-            // If multi-pass fails, fall back to single encode
-            console.warn("[humanize] multi-pass fallback:", passErr);
-            current = cFull;
-          }
-
-          // ── Step 4: Final encode at 94 % ─────────────────────────────────
-          current.toBlob(
-            (blob) => {
-              if (!blob) { reject(new Error("toBlob returned null")); return; }
-              const reader = new FileReader();
-              reader.onload  = () => resolve(reader.result as string);
-              reader.onerror = (e) => reject(new Error(`FileReader: ${e}`));
-              reader.readAsDataURL(blob);
-            },
-            "image/jpeg",
-            0.94
-          );
-        } catch (err) { reject(err); }
-      };
-
-      img.onerror = (e) => reject(new Error(`Image load failed: ${e}`));
-      img.src = dataUrl;
-    } catch (err) { reject(err); }
-  });
+  // ── Step 4: Final encode at 94 % ─────────────────────────────────────────
+  const finalBlob = await toBlob(current, 0.94);
+  return blobToDataUrl(finalBlob);
 }
 
 // ── Download filename helper ──────────────────────────────────────────────────
