@@ -243,67 +243,44 @@ export function humanizeImage(dataUrl: string): Promise<string> {
             return ctx;
           };
 
-          // ── Resize pass 1: 78 % ──────────────────────────────────────────
-          const S1 = 0.78;
+          // Helper: encode canvas to blob at given quality
+          const toBlob = (c: HTMLCanvasElement, q: number): Promise<Blob> =>
+            new Promise((res, rej) => c.toBlob((b) => b ? res(b) : rej(new Error("toBlob null")), "image/jpeg", q));
+
+          // Helper: load blob back onto a fresh canvas
+          const blobToCanvas = (blob: Blob): Promise<HTMLCanvasElement> =>
+            new Promise((res, rej) => {
+              const url = URL.createObjectURL(blob);
+              const i2 = new window.Image();
+              i2.onload = () => {
+                URL.revokeObjectURL(url);
+                const c = document.createElement("canvas");
+                c.width = i2.naturalWidth; c.height = i2.naturalHeight;
+                c.getContext("2d")!.drawImage(i2, 0, 0);
+                res(c);
+              };
+              i2.onerror = () => { URL.revokeObjectURL(url); rej(new Error("blobToCanvas load failed")); };
+              i2.src = url;
+            });
+
+          // ── Step 1: Gentle resize (92 % → 97 %) – changes pixel interpolation ──
+          // Two subtle passes so each is near-invisible but combined breaks AI grid
           const c1 = document.createElement("canvas");
-          c1.width = Math.round(W * S1); c1.height = Math.round(H * S1);
+          c1.width = Math.round(W * 0.92); c1.height = Math.round(H * 0.92);
           smooth(c1).drawImage(img, 0, 0, c1.width, c1.height);
 
           const cFull = document.createElement("canvas");
           cFull.width = W; cFull.height = H;
           smooth(cFull).drawImage(c1, 0, 0, W, H);
 
-          // ── Lens blur 0.5 px ─────────────────────────────────────────────
-          const ctxFull = cFull.getContext("2d")!;
-          ctxFull.filter = "blur(0.5px)";
-          ctxFull.drawImage(cFull, 0, 0);
-          ctxFull.filter = "none";
-
-          // ── Resize pass 2: 92 % ──────────────────────────────────────────
-          const S2 = 0.92;
           const c2 = document.createElement("canvas");
-          c2.width = Math.round(W * S2); c2.height = Math.round(H * S2);
+          c2.width = Math.round(W * 0.97); c2.height = Math.round(H * 0.97);
           smooth(c2).drawImage(cFull, 0, 0, c2.width, c2.height);
           smooth(cFull).drawImage(c2, 0, 0, W, H);
 
-          // ── Film grain (spatially correlated) ────────────────────────────
-          // Generate grain at 1/4 scale → upscale → clusters like real sensor grain
-          const GRAIN_SCALE = 0.28;
-          const gW = Math.max(1, Math.round(W * GRAIN_SCALE));
-          const gH = Math.max(1, Math.round(H * GRAIN_SCALE));
-          const cGrain = document.createElement("canvas");
-          cGrain.width = gW; cGrain.height = gH;
-          const gCtx = cGrain.getContext("2d")!;
-          const grainData = gCtx.createImageData(gW, gH);
-          for (let i = 0; i < grainData.data.length; i += 4) {
-            const v = Math.round(Math.random() * 255);
-            grainData.data[i] = v; grainData.data[i+1] = v;
-            grainData.data[i+2] = v; grainData.data[i+3] = 255;
-          }
-          gCtx.putImageData(grainData, 0, 0);
+          const ctxFull = cFull.getContext("2d")!;
 
-          // Overlay grain at full size (soft-light blends like real film)
-          ctxFull.save();
-          ctxFull.globalCompositeOperation = "soft-light";
-          ctxFull.globalAlpha = 0.06;
-          ctxFull.imageSmoothingEnabled = true;
-          ctxFull.imageSmoothingQuality = "high";
-          ctxFull.drawImage(cGrain, 0, 0, W, H);
-          ctxFull.restore();
-
-          // ── Vignetting (all real lenses darken corners) ───────────────────
-          const cx = W / 2, cy = H / 2;
-          const outerR = Math.sqrt(cx * cx + cy * cy);
-          const vignette = ctxFull.createRadialGradient(cx, cy, outerR * 0.45, cx, cy, outerR);
-          vignette.addColorStop(0, "rgba(0,0,0,0)");
-          vignette.addColorStop(1, "rgba(0,0,0,0.08)");
-          ctxFull.save();
-          ctxFull.globalCompositeOperation = "source-over";
-          ctxFull.fillStyle = vignette;
-          ctxFull.fillRect(0, 0, W, H);
-          ctxFull.restore();
-
-          // ── Read pixels for CA + chroma noise ────────────────────────────
+          // ── Step 2: S-curve + subtle CA (pixel-level, completely invisible) ─
           let srcData: ImageData;
           try { srcData = ctxFull.getImageData(0, 0, W, H); }
           catch (e) { reject(new Error(`getImageData failed: ${e}`)); return; }
@@ -312,10 +289,21 @@ export function humanizeImage(dataUrl: string): Promise<string> {
           const out = ctxFull.createImageData(W, H);
           const d = out.data;
 
-          const CA = 3;
-          const rDrift = (Math.random() - 0.5) * 6;
-          const gDrift = (Math.random() - 0.5) * 3;
-          const bDrift = (Math.random() - 0.5) * 6;
+          // Precompute S-curve LUT (very subtle – mimics camera ISP tone mapping)
+          // v^0.97 in shadows, v^1.03 in highlights → barely visible S-shape
+          const lut = new Uint8Array(256);
+          for (let v = 0; v < 256; v++) {
+            const n = v / 255;
+            const curved = n < 0.5
+              ? 0.5 * Math.pow(2 * n, 0.96)
+              : 1 - 0.5 * Math.pow(2 * (1 - n), 0.96);
+            lut[v] = Math.round(Math.min(1, Math.max(0, curved)) * 255);
+          }
+
+          const CA = 2; // chromatic aberration px – invisible at 2
+          const rDrift = (Math.random() - 0.5) * 4;
+          const gDrift = (Math.random() - 0.5) * 2;
+          const bDrift = (Math.random() - 0.5) * 4;
 
           for (let y = 0; y < H; y++) {
             for (let x = 0; x < W; x++) {
@@ -323,23 +311,32 @@ export function humanizeImage(dataUrl: string): Promise<string> {
               const rI = (y * W + Math.max(0,     x - CA)) * 4;
               const bI = (y * W + Math.min(W - 1, x + CA)) * 4;
 
-              // Bayer-like chroma noise: R and B channels noisier than G
-              const luma01 = (s[i] * 0.299 + s[i+1] * 0.587 + s[i+2] * 0.114) / 255;
-              const amp = 2 + (1 - luma01) * 8; // ±2 highlights → ±10 shadows
-              const rN = (Math.random() - 0.5) * amp * 2.2;
-              const gN = (Math.random() - 0.5) * amp * 0.9; // green noisier in Bayer
-              const bN = (Math.random() - 0.5) * amp * 2.2;
-
-              d[i]     = Math.min(255, Math.max(0, s[rI]     + rN + rDrift));
-              d[i + 1] = Math.min(255, Math.max(0, s[i + 1]  + gN + gDrift));
-              d[i + 2] = Math.min(255, Math.max(0, s[bI + 2] + bN + bDrift));
+              d[i]     = Math.min(255, Math.max(0, lut[s[rI]]     + rDrift));
+              d[i + 1] = Math.min(255, Math.max(0, lut[s[i + 1]]  + gDrift));
+              d[i + 2] = Math.min(255, Math.max(0, lut[s[bI + 2]] + bDrift));
               d[i + 3] = 255;
             }
           }
           ctxFull.putImageData(out, 0, 0);
 
-          // ── JPEG at 76 % ─────────────────────────────────────────────────
-          cFull.toBlob(
+          // ── Step 3: 3× JPEG micro-passes at 97 % ─────────────────────────
+          // Each encode/decode cycle adds DCT quantisation artefacts that are
+          // statistically indistinguishable from real camera JPEG processing.
+          // At 97 % per pass the visual degradation is imperceptible.
+          let current = cFull;
+          try {
+            for (let pass = 0; pass < 3; pass++) {
+              const b = await toBlob(current, 0.97);
+              current = await blobToCanvas(b);
+            }
+          } catch (passErr) {
+            // If multi-pass fails, fall back to single encode
+            console.warn("[humanize] multi-pass fallback:", passErr);
+            current = cFull;
+          }
+
+          // ── Step 4: Final encode at 94 % ─────────────────────────────────
+          current.toBlob(
             (blob) => {
               if (!blob) { reject(new Error("toBlob returned null")); return; }
               const reader = new FileReader();
@@ -348,7 +345,7 @@ export function humanizeImage(dataUrl: string): Promise<string> {
               reader.readAsDataURL(blob);
             },
             "image/jpeg",
-            0.95
+            0.94
           );
         } catch (err) { reject(err); }
       };
