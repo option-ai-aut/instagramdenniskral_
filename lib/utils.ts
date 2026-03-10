@@ -284,73 +284,43 @@ export async function humanizeImage(dataUrl: string): Promise<string> {
   const H = img.naturalHeight;
   if (W === 0 || H === 0) throw new Error("Image has zero dimensions");
 
-  // ── Step 1: Two gentle resize passes (92 % → full, 97 % → full) ─────────
-  // Breaks diffusion-model pixel grid statistics via bicubic interpolation.
-  const c1 = document.createElement("canvas");
-  c1.width = Math.round(W * 0.92); c1.height = Math.round(H * 0.92);
-  smooth(c1).drawImage(img, 0, 0, c1.width, c1.height);
-
+  // Draw source onto canvas
   const cFull = document.createElement("canvas");
   cFull.width = W; cFull.height = H;
-  smooth(cFull).drawImage(c1, 0, 0, W, H);
-
-  const c2 = document.createElement("canvas");
-  c2.width = Math.round(W * 0.97); c2.height = Math.round(H * 0.97);
-  smooth(c2).drawImage(cFull, 0, 0, c2.width, c2.height);
-  smooth(cFull).drawImage(c2, 0, 0, W, H);
-
   const ctxFull = cFull.getContext("2d")!;
+  ctxFull.drawImage(img, 0, 0);
 
-  // ── Step 2: S-curve LUT + subtle CA (completely invisible) ───────────────
+  // ── Subtle S-curve + 1 px CA (completely invisible, <0.4 % pixel change) ─
   const srcData = ctxFull.getImageData(0, 0, W, H);
   const s = srcData.data;
   const out = ctxFull.createImageData(W, H);
   const d = out.data;
 
-  // Very subtle S-curve – mimics camera ISP tone mapping, imperceptible
   const lut = new Uint8Array(256);
   for (let v = 0; v < 256; v++) {
     const n = v / 255;
-    const curved = n < 0.5
-      ? 0.5 * Math.pow(2 * n, 0.96)
-      : 1 - 0.5 * Math.pow(2 * (1 - n), 0.96);
-    lut[v] = Math.round(Math.min(1, Math.max(0, curved)) * 255);
+    const c = n < 0.5
+      ? 0.5 * Math.pow(2 * n, 0.97)
+      : 1 - 0.5 * Math.pow(2 * (1 - n), 0.97);
+    lut[v] = Math.round(Math.min(1, Math.max(0, c)) * 255);
   }
 
-  const CA = 2;
-  const rDrift = (Math.random() - 0.5) * 4;
-  const gDrift = (Math.random() - 0.5) * 2;
-  const bDrift = (Math.random() - 0.5) * 4;
-
+  const CA = 1; // 1 px chromatic aberration – invisible
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
       const i  = (y * W + x) * 4;
       const rI = (y * W + Math.max(0,     x - CA)) * 4;
       const bI = (y * W + Math.min(W - 1, x + CA)) * 4;
-      d[i]     = Math.min(255, Math.max(0, lut[s[rI]]     + rDrift));
-      d[i + 1] = Math.min(255, Math.max(0, lut[s[i + 1]]  + gDrift));
-      d[i + 2] = Math.min(255, Math.max(0, lut[s[bI + 2]] + bDrift));
+      d[i]     = lut[s[rI]];
+      d[i + 1] = lut[s[i + 1]];
+      d[i + 2] = lut[s[bI + 2]];
       d[i + 3] = 255;
     }
   }
   ctxFull.putImageData(out, 0, 0);
 
-  // ── Step 3: 3× JPEG micro-passes at 97 % ─────────────────────────────────
-  // Each encode/decode cycle adds DCT quantisation artefacts that are
-  // statistically indistinguishable from real multi-generation JPEG processing.
-  let current: HTMLCanvasElement = cFull;
-  try {
-    for (let pass = 0; pass < 3; pass++) {
-      const b = await toBlob(current, 0.97);
-      current = await blobToCanvas(b);
-    }
-  } catch (passErr) {
-    console.warn("[humanize] multi-pass fallback:", passErr);
-    current = cFull;
-  }
-
-  // ── Step 4: Final encode at 97 % ─────────────────────────────────────────
-  const finalBlob = await toBlob(current, 0.97);
+  // ── Single encode at 97 % – maximum quality ───────────────────────────────
+  const finalBlob = await toBlob(cFull, 0.97);
   return blobToDataUrl(finalBlob);
 }
 
