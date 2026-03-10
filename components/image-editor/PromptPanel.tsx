@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import {
   SparklesIcon,
@@ -40,6 +40,12 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
   const [humanizing, setHumanizing] = useState(false);
   const [humanizeError, setHumanizeError] = useState<string | null>(null);
   const [cropRatio, setCropRatio] = useState<"none" | "1:1" | "4:5">("none");
+  const [cropOffset, setCropOffset] = useState({ x: 0.5, y: 0.5 });
+  const isDragging = useRef(false);
+  const dragStart = useRef<{ px: number; py: number; ox: number; oy: number } | null>(null);
+
+  // Reset crop position to center whenever ratio changes
+  useEffect(() => { setCropOffset({ x: 0.5, y: 0.5 }); }, [cropRatio]);
 
   const fetchPrompts = useCallback(async () => {
     try {
@@ -154,10 +160,10 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
         console.log("[download] blob→dataUrl done, size:", dataUrl.length);
       }
 
-      // Step 1: center-crop if ratio selected
+      // Step 1: crop with user-selected position if ratio selected
       let processed = dataUrl;
       if (cropRatio !== "none") {
-        processed = await cropImage(processed, cropRatio);
+        processed = await cropImage(processed, cropRatio, cropOffset);
         console.log("[download] crop done");
       }
 
@@ -185,6 +191,34 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
     (p) => p.text.trim() === selected.prompt.trim()
   );
 
+  // ── Interactive crop drag & scroll ────────────────────────────────────────
+  const handleCropPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    isDragging.current = true;
+    dragStart.current = { px: e.clientX, py: e.clientY, ox: cropOffset.x, oy: cropOffset.y };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  };
+  const handleCropPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isDragging.current || !dragStart.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const dx = (e.clientX - dragStart.current.px) / rect.width;
+    const dy = (e.clientY - dragStart.current.py) / rect.height;
+    // sensitivity: drag feels like moving a smaller window inside a larger container
+    const sens = 3;
+    setCropOffset({
+      x: Math.max(0, Math.min(1, dragStart.current.ox + dx * sens)),
+      y: Math.max(0, Math.min(1, dragStart.current.oy + dy * sens)),
+    });
+  };
+  const handleCropPointerUp = () => { isDragging.current = false; dragStart.current = null; };
+  const handleCropWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setCropOffset((prev) => ({
+      x: Math.max(0, Math.min(1, prev.x + e.deltaX * 0.003)),
+      y: Math.max(0, Math.min(1, prev.y + e.deltaY * 0.003)),
+    }));
+  };
+
   return (
     <>
       {/* ── Desktop: image left | controls right ── */}
@@ -211,44 +245,41 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
               />
             )}
 
-            {/* Crop preview – dimmed full image + sharp crop window */}
+            {/* Crop preview – interactive pan with drag or scroll */}
             {cropRatio !== "none" && (
               <>
-                {/* Blurred/dimmed background showing full image */}
-                <Image
-                  src={previewSrc}
-                  alt="background"
-                  fill
-                  className="object-cover opacity-[0.12] blur-sm"
-                  sizes="(max-width: 1280px) 60vw, 800px"
-                  unoptimized
-                />
-                {/* Dark vignette overlay */}
-                <div className="absolute inset-0 bg-black/50" />
-                {/* Crop window centered */}
-                <div className="absolute inset-0 flex items-center justify-center">
+                {/* Dimmed background */}
+                <Image src={previewSrc} alt="bg" fill className="object-cover opacity-[0.12] blur-sm" sizes="(max-width: 1280px) 60vw, 800px" unoptimized />
+                <div className="absolute inset-0 bg-black/55" />
+                {/* Draggable crop window */}
+                <div
+                  className="absolute inset-0 flex items-center justify-center cursor-grab active:cursor-grabbing select-none"
+                  onPointerDown={handleCropPointerDown}
+                  onPointerMove={handleCropPointerMove}
+                  onPointerUp={handleCropPointerUp}
+                  onPointerCancel={handleCropPointerUp}
+                  onWheel={handleCropWheel}
+                >
                   <div
-                    style={{
-                      aspectRatio: cropRatio === "1:1" ? "1 / 1" : "4 / 5",
-                      height: "100%",
-                      maxWidth: "100%",
-                      position: "relative",
-                    }}
-                    className="overflow-hidden rounded-xl ring-2 ring-white/20"
+                    style={{ aspectRatio: cropRatio === "1:1" ? "1 / 1" : "4 / 5", height: "100%", maxWidth: "100%", position: "relative" }}
+                    className="overflow-hidden rounded-xl ring-2 ring-white/30 shadow-2xl"
                   >
-                    <Image
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
                       src={previewSrc}
                       alt="crop preview"
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 1280px) 60vw, 800px"
-                      unoptimized
+                      draggable={false}
+                      style={{
+                        width: "100%", height: "100%",
+                        objectFit: "cover",
+                        objectPosition: `${cropOffset.x * 100}% ${cropOffset.y * 100}%`,
+                        pointerEvents: "none", userSelect: "none",
+                      }}
                     />
                   </div>
                 </div>
-                {/* Crop ratio label */}
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-black/70 border border-white/10 text-[10px] text-white/60 font-medium">
-                  {cropRatio}
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-black/70 border border-white/10 text-[10px] text-white/50 font-medium pointer-events-none">
+                  {cropRatio} · Ziehen oder Scrollen zum Positionieren
                 </div>
               </>
             )}
@@ -536,20 +567,40 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
             />
           )}
 
-          {/* Crop preview (mobile) */}
+          {/* Crop preview (mobile) – interactive */}
           {cropRatio !== "none" && (
             <>
               <Image src={previewSrc} alt="bg" fill className="object-cover opacity-[0.12] blur-sm" sizes="100vw" unoptimized />
-              <div className="absolute inset-0 bg-black/50" />
-              <div className="absolute inset-0 flex items-center justify-center">
+              <div className="absolute inset-0 bg-black/55" />
+              <div
+                className="absolute inset-0 flex items-center justify-center cursor-grab active:cursor-grabbing select-none"
+                onPointerDown={handleCropPointerDown}
+                onPointerMove={handleCropPointerMove}
+                onPointerUp={handleCropPointerUp}
+                onPointerCancel={handleCropPointerUp}
+                onWheel={handleCropWheel}
+              >
                 <div
                   style={{ aspectRatio: cropRatio === "1:1" ? "1 / 1" : "4 / 5", height: "100%", maxWidth: "100%", position: "relative" }}
-                  className="overflow-hidden rounded-lg ring-2 ring-white/20"
+                  className="overflow-hidden rounded-lg ring-2 ring-white/30"
                 >
-                  <Image src={previewSrc} alt="crop preview" fill className="object-cover" sizes="100vw" unoptimized />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={previewSrc}
+                    alt="crop preview"
+                    draggable={false}
+                    style={{
+                      width: "100%", height: "100%",
+                      objectFit: "cover",
+                      objectPosition: `${cropOffset.x * 100}% ${cropOffset.y * 100}%`,
+                      pointerEvents: "none", userSelect: "none",
+                    }}
+                  />
                 </div>
               </div>
-              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-black/70 border border-white/10 text-[10px] text-white/60 font-medium">{cropRatio}</div>
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-md bg-black/70 border border-white/10 text-[10px] text-white/50 font-medium pointer-events-none">
+                {cropRatio} · Ziehen zum Positionieren
+              </div>
             </>
           )}
 

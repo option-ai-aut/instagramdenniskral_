@@ -143,7 +143,17 @@ export function compressImage(
  * Center-crops a data URL to the given aspect ratio (e.g. "1:1" or "4:5").
  * Returns the cropped image as a JPEG data URL.
  */
-export function cropImage(dataUrl: string, ratio: "1:1" | "4:5"): Promise<string> {
+/**
+ * Crops a data URL to the given aspect ratio.
+ * @param offset - normalized position (0–1) for both axes.
+ *   x=0 → left edge, x=1 → right edge, x=0.5 → center.
+ *   Defaults to center (0.5, 0.5).
+ */
+export function cropImage(
+  dataUrl: string,
+  ratio: "1:1" | "4:5",
+  offset: { x: number; y: number } = { x: 0.5, y: 0.5 },
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new window.Image();
     img.onload = () => {
@@ -154,17 +164,17 @@ export function cropImage(dataUrl: string, ratio: "1:1" | "4:5"): Promise<string
 
       let cropW: number, cropH: number;
       if (srcRatio > targetRatio) {
-        // wider than target → crop sides
         cropH = h;
         cropW = Math.round(h * targetRatio);
       } else {
-        // taller than target → crop top/bottom
         cropW = w;
         cropH = Math.round(w / targetRatio);
       }
 
-      const offsetX = Math.floor((w - cropW) / 2);
-      const offsetY = Math.floor((h - cropH) / 2);
+      const maxX = w - cropW;
+      const maxY = h - cropH;
+      const offsetX = Math.round(Math.max(0, Math.min(maxX, offset.x * maxX)));
+      const offsetY = Math.round(Math.max(0, Math.min(maxY, offset.y * maxY)));
 
       const canvas = document.createElement("canvas");
       canvas.width  = cropW;
@@ -339,8 +349,8 @@ export async function humanizeImage(dataUrl: string): Promise<string> {
     current = cFull;
   }
 
-  // ── Step 4: Final encode at 94 % ─────────────────────────────────────────
-  const finalBlob = await toBlob(current, 0.94);
+  // ── Step 4: Final encode at 97 % ─────────────────────────────────────────
+  const finalBlob = await toBlob(current, 0.97);
   return blobToDataUrl(finalBlob);
 }
 
