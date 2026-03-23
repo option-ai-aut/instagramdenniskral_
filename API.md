@@ -672,4 +672,4 @@ type Slide = {
 };
 ```
 
-Beim Satori-Export (1080px) werden alle `fontSize`-Werte mit Faktor `1080/380 ≈ 2.84` skaliert.
+Beim Satori-Export (2160px / 2K) werden alle `fontSize`-Werte mit Faktor `2160/380 ≈ 5.68` skaliert.

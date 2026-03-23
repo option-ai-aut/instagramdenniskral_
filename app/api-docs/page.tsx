@@ -373,7 +373,7 @@ X-Slide-Count: 3`} />
             <code className="text-[13px] font-mono text-white/70">/api/openclaw/carousels/:id/slides/:index/image.png</code>
           </div>
           <p className="text-[13px] text-white/50">
-            Rendert einen einzelnen Slide als PNG-Datei (1080×1350px für 4:5, 1080×1080px für 1:1, 1080×1920px für 9:16).
+            Rendert einen einzelnen Slide als PNG-Datei (2160×2700px für 4:5, 2160×2160px für 1:1, 2160×3840px für 9:16).
             Für Einzelabrufe oder Vorschauen. Für den vollständigen Download lieber den ZIP-Endpoint nutzen.
           </p>
           <CodeBlock lang="bash" code={`# Slide 1 herunterladen (Index 0)

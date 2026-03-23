@@ -21,15 +21,15 @@ function getLocalInterFont(): SatoriFontEntry | null {
   }
 }
 
-export const SLIDE_WIDTH = 1080;
+export const SLIDE_WIDTH = 2160;
 
 /**
  * The canvas editor renders the preview at max-w-[380px] with scale=1.
  * All font sizes and measurements in the store are authored at this width.
- * We multiply by this factor to maintain visual proportionality at 1080px.
+ * We multiply by this factor to maintain visual proportionality at 2160px (2K).
  */
 const DESIGN_WIDTH = 380;
-const DESIGN_SCALE = SLIDE_WIDTH / DESIGN_WIDTH; // ≈ 2.842
+const DESIGN_SCALE = SLIDE_WIDTH / DESIGN_WIDTH; // ≈ 5.684
 
 /** Default horizontal padding (px-6 = 6% of 380px ≈ 24px). Scaled to Satori canvas. */
 const SATORI_PADDING = Math.round(24 * DESIGN_SCALE); // ≈ 68px
