@@ -132,7 +132,7 @@ export default function ApiDocsPage() {
           <EndpointRow method="GET"  path="/api/openclaw/templates"                        desc="Alle verfügbaren Templates und gespeicherten Karussells auflisten" />
           <EndpointRow method="GET"  path="/api/openclaw/templates/:id"                   desc="Genaue Struktur eines Templates (Slides, Elemente, Positionen)" />
           <EndpointRow method="GET"  path="/api/openclaw/carousels"                       desc="Alle erstellten Karussells mit Download-URLs auflisten" />
-          <EndpointRow method="POST" path="/api/openclaw/carousels"                       desc="Neues Karussell aus Template erstellen + Texte befüllen" />
+          <EndpointRow method="POST" path="/api/openclaw/carousels"                       desc="Slides aus Template befüllen + direkt als ZIP erhalten (kein DB-Eintrag)" />
           <EndpointRow method="GET"  path="/api/openclaw/carousels/:id/slides/:i/image.png" desc="Einzelnen Slide als PNG herunterladen" />
           <EndpointRow method="GET"  path="/api/openclaw/carousels/:id/slides/zip" desc="Alle Slides als ZIP-Archiv herunterladen (empfohlen)" />
         </div>
@@ -349,9 +349,9 @@ X-Slide-Count: 3`} />
             <code className="text-[13px] font-mono text-white/70">/api/openclaw/carousels/:id/slides/zip</code>
           </div>
           <p className="text-[13px] text-white/50">
-            Rendert <strong className="text-white/70">alle Slides</strong> eines Karussells auf einmal und gibt sie als ZIP-Archiv zurück.
+            Rendert <strong className="text-white/70">alle Slides</strong> eines gespeicherten Karussells und gibt sie als ZIP-Archiv zurück.
             Enthält <code className="text-[#60a5fa]">slide-1.png</code>, <code className="text-[#60a5fa]">slide-2.png</code>, etc.
-            Kein separates API-Key erforderlich – die Karussell-ID ist nicht erratbar.
+            API-Key ist erforderlich.
           </p>
           <div className="rounded-xl border border-[#34d399]/20 bg-[#34d399]/5 px-4 py-3">
             <p className="text-[11px] text-[#34d399]/80">
@@ -392,23 +392,20 @@ curl -o slide-1.png \\
             <code className="text-[13px] font-mono text-white/70">/api/openclaw/carousels</code>
           </div>
           <p className="text-[13px] text-white/50">
-            Gibt alle bisher erstellten Karussells zurück, inkl. PNG-URLs für jeden Slide.
+            Gibt alle gespeicherten Karussell-Templates zurück (die du im Canvas-Editor erstellt hast). Nutze die IDs als <code className="text-[#60a5fa]">templateId</code> im POST.
           </p>
           <CodeBlock lang="bash" code={`curl -H "Authorization: Bearer YOUR_KEY" \\
   ${BASE_URL}/api/openclaw/carousels`} />
           <CodeBlock lang="json" code={`{
-  "carousels": [
+  "templates": [
     {
       "id": "abc123",
-      "title": "Update KW 9 – Launch Day",
-      "slideCount": 1,
-      "updatedAt": "2026-02-28T20:00:00.000Z",
-      "slideImageUrls": [
-        "${BASE_URL}/api/openclaw/carousels/abc123/slides/0/image.png"
-      ],
-      "viewUrl": "${BASE_URL}/canvas?load=abc123"
+      "title": "Mein Template",
+      "slideCount": 5,
+      "updatedAt": "2026-03-23T20:00:00.000Z"
     }
-  ]
+  ],
+  "note": "Use any id as templateId in POST /api/openclaw/carousels to generate images."
 }`} />
         </Section>
 
@@ -547,11 +544,13 @@ curl -X POST ${BASE_URL}/api/openclaw/carousels \\
               </tbody>
             </table>
           </div>
-          <CodeBlock lang="json" code={`// Fehler-Response Format
+          <CodeBlock lang="json" code={`// Fehler-Response Format (JSON)
 { "error": "Beschreibung des Fehlers" }
 
-// Erfolg (POST)
-{ "carouselId": "...", "slideImageUrls": [...], "viewUrl": "..." }`} />
+// POST /api/openclaw/carousels → Erfolg = application/zip (Binär, kein JSON!)
+// Response-Header: Content-Type: application/zip
+//                  X-Slide-Count: 3
+//                  Content-Disposition: attachment; filename="titel.zip"`} />
         </Section>
 
         <div className="text-center py-4">

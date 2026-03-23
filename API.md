@@ -159,9 +159,12 @@ Bearbeitet ein einzelnes Bild mit `gemini-3-pro-image-preview`.
 {
   "success": true,
   "resultBase64": "<base64-PNG>",
-  "mimeType": "image/png"
+  "mimeType": "image/png",
+  "resultUrl": "https://...supabase.co/storage/..."
 }
 ```
+
+> `resultUrl` ist die persistente Supabase-URL des generierten Bildes (wird nach Seitenreload als Fallback genutzt).
 
 ---
 
@@ -386,11 +389,12 @@ Löscht ein Bild (prüft Eigentümerschaft via Session → User).
 
 #### `GET /api/history`
 
-Paginierte History aller Sessions und Karussells.
+Paginierte History aller Sessions und Karussells (unabhängige Pagination).
 
 | Query-Param | Typ | Default | Max |
 |-------------|-----|---------|-----|
-| `page` | number | `1` | – |
+| `sessionPage` | number | `1` | – |
+| `carouselPage` | number | `1` | – |
 | `limit` | number | `20` | `50` |
 
 **Response 200:**
@@ -398,7 +402,9 @@ Paginierte History aller Sessions und Karussells.
 {
   "sessions": [...],
   "carousels": [...],
-  "pagination": { "page": 1, "limit": 20 }
+  "sessionTotal": 42,
+  "carouselTotal": 15,
+  "pagination": { "sessionPage": 1, "carouselPage": 1, "limit": 20 }
 }
 ```
 
@@ -501,11 +507,18 @@ Listet alle gespeicherten Karussells (ohne builtin).
 ```json
 {
   "templates": [
-    { "id": "abc123", "title": "Meine Vorlage", "slideCount": 5, "updatedAt": "..." }
+    {
+      "id": "abc123",
+      "title": "Meine Vorlage",
+      "slideCount": 5,
+      "updatedAt": "2026-03-23T20:00:00.000Z"
+    }
   ],
   "note": "Use any id as templateId in POST /api/openclaw/carousels to generate images."
 }
 ```
+
+> Die `id` aus `templates[]` wird direkt als `templateId` im POST-Body verwendet.
 
 ---
 
