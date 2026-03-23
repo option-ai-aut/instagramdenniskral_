@@ -16,7 +16,7 @@ import {
   ImageIcon,
   WandSparklesIcon,
 } from "lucide-react";
-import { cn, downloadDataUrl, studioFilename, humanizeImage, cropImage } from "@/lib/utils";
+import { cn, downloadDataUrl, studioFilename, cropImage } from "@/lib/utils";
 import { useImageEditorStore } from "@/store/imageEditorStore";
 
 type Props = {
@@ -37,8 +37,8 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false);
-  const [humanizing, setHumanizing] = useState(false);
-  const [humanizeError, setHumanizeError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [cropRatio, setCropRatio] = useState<"none" | "1:1" | "4:5">("none");
   const [cropOffset, setCropOffset] = useState({ x: 0.5, y: 0.5 });
   const isDragging = useRef(false);
@@ -129,26 +129,14 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
 
   const handleDownload = async () => {
     if (!previewSrc) return;
-    setHumanizing(true);
-    setHumanizeError(null);
-
-    // Debug: log state so we can diagnose in console
-    console.log("[download] start", {
-      previewSrc: previewSrc.slice(0, 60),
-      hasResult,
-      viewingOriginal,
-      resultDataUrl: !!selected.resultDataUrl,
-      resultUrl: selected.resultUrl,
-      status: selected.status,
-    });
-
+    setDownloading(true);
+    setDownloadError(null);
     try {
-      // Step 0: resolve to data URL (avoids canvas CORS taint for Supabase/CDN URLs)
+      // Resolve remote URLs to blob first (needed for crop canvas)
       let dataUrl = previewSrc;
       if (previewSrc.startsWith("http")) {
-        console.log("[download] fetching remote URL as blob…");
         const blob = await fetch(previewSrc).then((r) => {
-          if (!r.ok) throw new Error(`Fetch failed: ${r.status} ${r.statusText}`);
+          if (!r.ok) throw new Error(`Fetch failed: ${r.status}`);
           return r.blob();
         });
         dataUrl = await new Promise<string>((res, rej) => {
@@ -157,33 +145,21 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
           reader.onerror = rej;
           reader.readAsDataURL(blob);
         });
-        console.log("[download] blob→dataUrl done, size:", dataUrl.length);
       }
 
-      // Step 1: crop with user-selected position if ratio selected
-      let processed = dataUrl;
-      if (cropRatio !== "none") {
-        processed = await cropImage(processed, cropRatio, cropOffset);
-        console.log("[download] crop done");
-      }
-
-      // Step 2: always humanize – regardless of hasResult, always apply
-      // (the previous condition `hasResult && !viewingOriginal` was the bug:
-      //  old images had resultUrl=undefined so hasResult=false → skipped)
-      console.log("[download] humanizing…");
-      processed = await humanizeImage(processed);
-      console.log("[download] humanize done, size:", processed.length);
+      // Crop if ratio selected, otherwise download as-is
+      const processed = cropRatio !== "none"
+        ? await cropImage(dataUrl, cropRatio, cropOffset)
+        : dataUrl;
 
       const suffix = cropRatio !== "none" ? ` ${cropRatio}` : "";
       downloadDataUrl(processed, `${studioFilename()}${suffix}.jpg`);
-      console.log("[download] complete");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error("[download] ERROR:", msg, err);
-      setHumanizeError(msg);
+      setDownloadError(msg);
       downloadDataUrl(previewSrc, `${studioFilename()}.jpg`);
     } finally {
-      setHumanizing(false);
+      setDownloading(false);
     }
   };
 
@@ -354,9 +330,9 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
             )}
 
             {/* Processing error */}
-            {humanizeError && (
+            {downloadError && (
               <div className="mt-1.5 px-2 py-1 rounded-lg bg-red-500/10 border border-red-500/20 text-[10px] text-red-400 break-all">
-                Fehler: {humanizeError}
+                Fehler: {downloadError}
               </div>
             )}
 
@@ -388,11 +364,11 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
               )}
               <button
                 onClick={handleDownload}
-                disabled={humanizing}
+                disabled={downloading}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-medium border border-white/10 text-white/60 hover:text-white hover:border-white/20 transition-all disabled:opacity-50"
               >
-                {humanizing ? <LoaderIcon size={11} className="animate-spin" /> : <DownloadIcon size={11} />}
-                {humanizing ? "Wird verarbeitet…" : "Download"}
+                {downloading ? <LoaderIcon size={11} className="animate-spin" /> : <DownloadIcon size={11} />}
+                {downloading ? "Wird verarbeitet…" : "Download"}
               </button>
             </div>
             </>
@@ -666,9 +642,9 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
                   <MaximizeIcon size={13} />
                 </button>
               )}
-              <button onClick={handleDownload} disabled={humanizing} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-medium border border-white/10 text-white/60 hover:text-white transition-all disabled:opacity-50">
-                {humanizing ? <LoaderIcon size={11} className="animate-spin" /> : <DownloadIcon size={11} />}
-                {humanizing ? "…" : "Download"}
+              <button onClick={handleDownload} disabled={downloading} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[11px] font-medium border border-white/10 text-white/60 hover:text-white transition-all disabled:opacity-50">
+                {downloading ? <LoaderIcon size={11} className="animate-spin" /> : <DownloadIcon size={11} />}
+                {downloading ? "…" : "Download"}
               </button>
             </div>
           </div>
@@ -778,10 +754,10 @@ export function PromptPanel({ onGenerate, onGenerateAll, isGeneratingAll, onProm
             />
             <button
               onClick={handleDownload}
-              disabled={humanizing}
+              disabled={downloading}
               className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 border border-white/10 text-xs text-white/70 hover:text-white transition-colors disabled:opacity-50"
             >
-              {humanizing ? <LoaderIcon size={12} className="animate-spin" /> : <DownloadIcon size={12} />}
+              {downloading ? <LoaderIcon size={12} className="animate-spin" /> : <DownloadIcon size={12} />}
               Download
             </button>
           </div>
