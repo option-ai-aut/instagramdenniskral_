@@ -267,7 +267,7 @@ export async function renderSlideToPng(
                 paddingRight: elPaddingPx,
               }}
             >
-              {el.text
+              {String(el.text ?? "")
                 .split("\u005C\u006E").join("\u000A")
                 .split("\u002F\u006E").join("\u000A")
                 .split("\u000D\u000A").join("\u000A")
@@ -282,7 +282,8 @@ export async function renderSlideToPng(
                     color: el.color ?? "#ffffff",
                     textAlign,
                     lineHeight: elLineHeight,
-                    letterSpacing: elLetterSpacing !== 0 ? elLetterSpacing : undefined,
+                    // Never pass undefined to Satori – it crashes calling .trim() on it
+                    ...(elLetterSpacing !== 0 ? { letterSpacing: elLetterSpacing } : {}),
                     wordBreak: "break-word",
                     maxWidth: "100%",
                     display: "block",

@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateOpenclaw } from "@/lib/openclaw-auth";
 import { getDb } from "@/lib/db";
 import { SYSTEM_USER_ID } from "@/lib/auth";
+import { parseSlidesPayload } from "@/lib/slides-payload";
 import type { Slide, TextElement } from "@/store/canvasStore";
 
 const BUILTIN_TEMPLATES: Record<string, {
@@ -145,7 +146,7 @@ export async function GET(
       );
     }
 
-    const slides: Slide[] = Array.isArray(carousel.slidesJson) ? carousel.slidesJson : [];
+    const { slides } = parseSlidesPayload(carousel.slidesJson);
     const describedSlides = slides.map((sl, i) => describeSlide(sl, i));
 
     return NextResponse.json({
