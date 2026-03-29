@@ -21,25 +21,25 @@ function getLocalInterFont(): SatoriFontEntry | null {
   }
 }
 
-export const SLIDE_WIDTH = 2160;
+/** Default export width – 2K. Can be overridden per-render. */
+export const DEFAULT_SLIDE_WIDTH = 2160;
 
-/**
- * The canvas editor renders the preview at max-w-[380px] with scale=1.
- * All font sizes and measurements in the store are authored at this width.
- * We multiply by this factor to maintain visual proportionality at 2160px (2K).
- */
+/** Supported resolution presets */
+export type ResolutionPreset = "2K" | "4K";
+export const RESOLUTION_WIDTHS: Record<ResolutionPreset, number> = {
+  "2K": 2160,
+  "4K": 4320,
+};
+
 const DESIGN_WIDTH = 380;
-const DESIGN_SCALE = SLIDE_WIDTH / DESIGN_WIDTH; // ≈ 5.684
 
-/** Default horizontal padding (px-6 = 6% of 380px ≈ 24px). Scaled to Satori canvas. */
-const SATORI_PADDING = Math.round(24 * DESIGN_SCALE); // ≈ 68px
-/** Slide width used to convert paddingX % to px at Satori resolution */
-const SATORI_SLIDE_WIDTH = SLIDE_WIDTH;
+function getDesignScale(slideWidth: number) { return slideWidth / DESIGN_WIDTH; }
+function getSatoriPadding(slideWidth: number) { return Math.round(24 * getDesignScale(slideWidth)); }
 
-export function getSlideHeight(aspectRatio: string): number {
-  if (aspectRatio === "1:1") return SLIDE_WIDTH;
-  if (aspectRatio === "9:16") return Math.round(SLIDE_WIDTH * (16 / 9));
-  return Math.round(SLIDE_WIDTH * (5 / 4)); // default 4:5
+export function getSlideHeight(aspectRatio: string, slideWidth = DEFAULT_SLIDE_WIDTH): number {
+  if (aspectRatio === "1:1") return slideWidth;
+  if (aspectRatio === "9:16") return Math.round(slideWidth * (16 / 9));
+  return Math.round(slideWidth * (5 / 4)); // default 4:5
 }
 
 function fontWeightNum(fw: string | undefined): number {
@@ -150,9 +150,10 @@ export async function renderSlideToPng(
   grainSize = 40,
   grainDensity = 50,
   grainSharpness = 50,
+  slideWidth = DEFAULT_SLIDE_WIDTH,
 ): Promise<ArrayBuffer> {
-  const W = SLIDE_WIDTH;
-  const H = getSlideHeight(slide.aspectRatio ?? "4:5");
+  const W = slideWidth;
+  const H = getSlideHeight(slide.aspectRatio ?? "4:5", slideWidth);
   const bgStyle = buildBgStyle(slide);
   const elements = (slide.elements ?? []) as TextElement[];
 
@@ -241,15 +242,16 @@ export async function renderSlideToPng(
           // Resolve per-element spacing values (with defaults)
           const elTyped = el as TextElement & { lineHeight?: number; letterSpacing?: number; paddingX?: number };
           const elLineHeight = elTyped.lineHeight ?? 1.3;
+          const designScale = getDesignScale(W);
           // letterSpacing stored in em – convert to px at Satori font size
-          const elFontSize = Math.round((el.fontSize ?? 16) * DESIGN_SCALE);
+          const elFontSize = Math.round((el.fontSize ?? 16) * designScale);
           const elLetterSpacing = elTyped.letterSpacing != null
             ? elTyped.letterSpacing * elFontSize
             : 0;
           // paddingX stored as % of design width – convert to Satori px
           const elPaddingPx = elTyped.paddingX != null
-            ? Math.round((elTyped.paddingX / 100) * SATORI_SLIDE_WIDTH)
-            : SATORI_PADDING;
+            ? Math.round((elTyped.paddingX / 100) * W)
+            : getSatoriPadding(W);
 
           return (
             <div

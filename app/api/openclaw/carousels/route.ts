@@ -26,7 +26,7 @@ import JSZip from "jszip";
 import { validateOpenclaw } from "@/lib/openclaw-auth";
 import { getDb } from "@/lib/db";
 import { SYSTEM_USER_ID } from "@/lib/auth";
-import { renderSlideToPng } from "@/lib/render-slide";
+import { renderSlideToPng, RESOLUTION_WIDTHS, type ResolutionPreset } from "@/lib/render-slide";
 import type { Slide, TextElement } from "@/store/canvasStore";
 import { nanoid } from "@/lib/nanoid";
 import { parseSlidesPayload } from "@/lib/slides-payload";
@@ -168,6 +168,8 @@ export async function POST(req: NextRequest) {
     // ── new simplified format ────────────────────────────────────────────────
     const tag          = typeof requestBody.tag  === "string" ? requestBody.tag  : undefined;
     const bodyText     = typeof requestBody.body === "string" ? requestBody.body : undefined;
+    const resolutionPreset = (requestBody.resolution as ResolutionPreset | undefined);
+    const slideWidth   = RESOLUTION_WIDTHS[resolutionPreset ?? "2K"] ?? RESOLUTION_WIDTHS["2K"];
     const slideOverrides = Array.isArray(requestBody.slides)
       ? (requestBody.slides as Array<{ header?: string; subtitle?: string }>)
       : undefined;
@@ -307,7 +309,7 @@ export async function POST(req: NextRequest) {
     ).replace(/[^a-z0-9_\-]/gi, "-").toLowerCase();
 
     for (let i = 0; i < finalSlides.length; i++) {
-      const buffer = await renderSlideToPng(finalSlides[i], grain.intensity, grain.size, grain.density, grain.sharpness);
+      const buffer = await renderSlideToPng(finalSlides[i], grain.intensity, grain.size, grain.density, grain.sharpness, slideWidth);
       zip.file(`${safeTitle}-slide-${i + 1}.png`, buffer);
     }
 

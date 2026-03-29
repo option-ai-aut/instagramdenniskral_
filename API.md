@@ -551,6 +551,7 @@ Generiert alle Slides als ZIP – **kein DB-Eintrag** wird erstellt. Gibt direkt
 | `templateId` | string | ✅ | Builtin-ID (`progress`/`tip`/`luxury`) oder gespeicherte Karussell-ID |
 | `title` | string | ❌ | ZIP-Dateiname (default: `"carousel"`) |
 | `grainIntensity` | number 0–100 | ❌ | Überschreibt Template-Grain-Standard |
+| `resolution` | `"2K"` \| `"4K"` | ❌ | Ausgabeauflösung. `"2K"` = 2160px Breite (default), `"4K"` = 4320px |
 | `tag` | string | ❌ | **Global** – gilt für alle Slides. Max 500 Zeichen. |
 | `body` | string | ❌ | **Global** – gilt für alle Slides (z.B. `@handle`). Max 500 Zeichen. |
 | `slides` | Array | ❌ | Pro-Slide-Texte: `{ header?, subtitle? }` |

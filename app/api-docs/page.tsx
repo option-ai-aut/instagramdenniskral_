@@ -289,6 +289,7 @@ curl -H "Authorization: Bearer YOUR_KEY" \\
             { name: "templateId",      type: "string",  req: true,  desc: "ID des Templates: 'progress', 'tip', 'luxury' oder gespeicherte Karussell-ID" },
             { name: "title",           type: "string",  req: false, desc: "ZIP-Dateiname (max 200 Zeichen). Default: 'carousel'" },
             { name: "grainIntensity",  type: "number",  req: false, desc: "Grain-Textur 0–100 (überschreibt Template-Standard)" },
+            { name: "resolution",      type: "\"2K\"|\"4K\"", req: false, desc: "Ausgabeauflösung: '2K' = 2160px (default), '4K' = 4320px" },
             { name: "tag",             type: "string",  req: false, desc: "Globaler Tag-Text – gilt für ALLE Slides. Max 500 Zeichen." },
             { name: "body",            type: "string",  req: false, desc: "Globaler Body-Text – gilt für ALLE Slides (z.B. @handle). Max 500 Zeichen." },
             { name: "slides",          type: "array",   req: false, desc: "Pro-Slide-Texte für header und subtitle. Index 0 = erster Slide." },

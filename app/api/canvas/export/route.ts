@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import JSZip from "jszip";
 import { requireAuth } from "@/lib/auth";
-import { renderSlideToPng } from "@/lib/render-slide";
+import { renderSlideToPng, RESOLUTION_WIDTHS, type ResolutionPreset } from "@/lib/render-slide";
 import type { Slide } from "@/store/canvasStore";
 
 export const runtime = "nodejs";
@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
   let slides: Slide[];
   let title: string;
   let grainIntensity: number, grainSize: number, grainDensity: number, grainSharpness: number;
+  let slideWidth: number;
 
   try {
     const body = await req.json();
@@ -32,6 +33,8 @@ export async function POST(req: NextRequest) {
     grainSize      = clamp(body.grainSize,      40);
     grainDensity   = clamp(body.grainDensity,   50);
     grainSharpness = clamp(body.grainSharpness, 50);
+    const preset = (body.resolution as ResolutionPreset | undefined);
+    slideWidth = RESOLUTION_WIDTHS[preset ?? "2K"] ?? RESOLUTION_WIDTHS["2K"];
   } catch {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
@@ -49,7 +52,7 @@ export async function POST(req: NextRequest) {
     const safeTitle = title.replace(/[^a-z0-9_\-]/gi, "-").toLowerCase();
 
     for (let i = 0; i < slides.length; i++) {
-      const buffer = await renderSlideToPng(slides[i], grainIntensity, grainSize, grainDensity, grainSharpness);
+      const buffer = await renderSlideToPng(slides[i], grainIntensity, grainSize, grainDensity, grainSharpness, slideWidth);
       zip.file(`${safeTitle}-slide-${i + 1}.png`, buffer);
     }
 

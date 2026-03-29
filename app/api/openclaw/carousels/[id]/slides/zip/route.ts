@@ -12,7 +12,7 @@ import JSZip from "jszip";
 import { validateOpenclaw } from "@/lib/openclaw-auth";
 import { getDb } from "@/lib/db";
 import { SYSTEM_USER_ID } from "@/lib/auth";
-import { renderSlideToPng } from "@/lib/render-slide";
+import { renderSlideToPng, RESOLUTION_WIDTHS, type ResolutionPreset } from "@/lib/render-slide";
 import type { Slide } from "@/store/canvasStore";
 import { parseSlidesPayload } from "@/lib/slides-payload";
 
@@ -66,11 +66,14 @@ export async function GET(
       ? clamp(req.nextUrl.searchParams.get("grainSharpness"), savedGrain.sharpness)
       : savedGrain.sharpness;
 
+    const resolutionPreset = req.nextUrl.searchParams.get("resolution") as ResolutionPreset | null;
+    const slideWidth = RESOLUTION_WIDTHS[resolutionPreset ?? "2K"] ?? RESOLUTION_WIDTHS["2K"];
+
     const zip = new JSZip();
     const safeTitle = (carousel.title ?? "carousel").replace(/[^a-z0-9_\-]/gi, "-").toLowerCase();
 
     for (let i = 0; i < slides.length; i++) {
-      const buffer = await renderSlideToPng(slides[i], grainIntensity, grainSize, grainDensity, grainSharpness);
+      const buffer = await renderSlideToPng(slides[i], grainIntensity, grainSize, grainDensity, grainSharpness, slideWidth);
       zip.file(`slide-${i + 1}.png`, buffer);
     }
 

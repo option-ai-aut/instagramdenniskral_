@@ -31,6 +31,7 @@ function CanvasInner() {
   const [autoSaving, setAutoSaving] = useState(false);
   const [autoSaved, setAutoSaved] = useState(false);
   const [autoSaveError, setAutoSaveError] = useState(false);
+  const [exportResolution, setExportResolution] = useState<"2K" | "4K">("2K");
 
   useEffect(() => {
     if (!savedCarouselId) return;
@@ -259,7 +260,7 @@ function CanvasInner() {
       const res = await fetch("/api/canvas/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slides, title: carouselTitle, grainIntensity, grainSize, grainDensity, grainSharpness }),
+        body: JSON.stringify({ slides, title: carouselTitle, grainIntensity, grainSize, grainDensity, grainSharpness, resolution: exportResolution }),
       });
 
       if (!res.ok) {
@@ -334,11 +335,29 @@ function CanvasInner() {
           </span>
         )}
 
+        {/* Resolution toggle 2K / 4K */}
+        <div className="flex items-center rounded-lg border border-white/10 overflow-hidden flex-shrink-0 h-[36px]">
+          {(["2K", "4K"] as const).map((res) => (
+            <button
+              key={res}
+              onClick={() => setExportResolution(res)}
+              className={cn(
+                "px-2.5 h-full text-[11px] font-medium transition-all",
+                exportResolution === res
+                  ? "bg-[#1d4ed8]/40 text-[#60a5fa]"
+                  : "text-white/30 hover:text-white/60"
+              )}
+            >
+              {res}
+            </button>
+          ))}
+        </div>
+
         {/* Download – icon only on mobile, icon+text on desktop */}
         <button
           onClick={handleExport}
           disabled={exporting}
-          title="Als ZIP exportieren"
+          title={`Als ZIP exportieren (${exportResolution})`}
           className="flex items-center gap-1 px-2.5 py-2 rounded-lg border border-white/10 text-xs text-white/50 hover:text-white transition-all disabled:opacity-40 flex-shrink-0 min-h-[36px]"
         >
           {exporting ? <LoaderIcon size={12} className="animate-spin" /> : <DownloadIcon size={12} />}
