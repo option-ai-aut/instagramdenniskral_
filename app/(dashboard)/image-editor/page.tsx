@@ -30,6 +30,7 @@ export default function ImageEditorPage() {
   const [smartError, setSmartError] = useState<string | null>(null);
   const [savedPromptsCount, setSavedPromptsCount] = useState<number | null>(null);
   const [selectedModel, setSelectedModel] = useState<ImageModel>("pro");
+  const [selectedResolution, setSelectedResolution] = useState<"2K" | "4K">("2K");
 
   // Track AbortControllers per image so we can cancel in-flight requests on unmount
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
@@ -163,6 +164,7 @@ export default function ImageEditorPage() {
           mimeType:    sendMime,
           prompt:      img.prompt,
           model:       MODEL_IDS[selectedModel],
+          imageSize:   selectedResolution,
           aspectRatio,
         }),
         signal,
@@ -238,6 +240,7 @@ export default function ImageEditorPage() {
           images: imageInputs,
           savedPrompts: savedPromptTexts,
           model: MODEL_IDS[selectedModel],
+          imageSize: selectedResolution,
         }),
       });
 
@@ -343,34 +346,55 @@ export default function ImageEditorPage() {
           )}
         </div>
 
-        {/* Center: model toggle – text always visible */}
-        <div className="flex items-center gap-0.5 p-0.5 rounded-xl border border-white/[0.08] bg-white/[0.03]">
-          <button
-            onClick={() => setSelectedModel("pro")}
-            className={cn(
-              "flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[11px] font-medium transition-all min-h-[36px]",
-              selectedModel === "pro"
-                ? "bg-white/[0.1] text-white border border-white/[0.12]"
-                : "text-white/40 hover:text-white/60"
-            )}
-          >
-            <CrownIcon size={11} />
-            Pro
-            <span className="hidden lg:inline text-white/30 font-normal text-[10px]">· Qualität</span>
-          </button>
-          <button
-            onClick={() => setSelectedModel("flash")}
-            className={cn(
-              "flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[11px] font-medium transition-all min-h-[36px]",
-              selectedModel === "flash"
-                ? "bg-[#1d4ed8]/20 text-[#60a5fa] border border-[#1d4ed8]/30"
-                : "text-white/40 hover:text-white/60"
-            )}
-          >
-            <ZapIcon size={11} />
-            Flash
-            <span className="hidden lg:inline text-white/30 font-normal text-[10px]">· schnell</span>
-          </button>
+        {/* Center: model toggle + resolution toggle */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-0.5 p-0.5 rounded-xl border border-white/[0.08] bg-white/[0.03]">
+            <button
+              onClick={() => setSelectedModel("pro")}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[11px] font-medium transition-all min-h-[36px]",
+                selectedModel === "pro"
+                  ? "bg-white/[0.1] text-white border border-white/[0.12]"
+                  : "text-white/40 hover:text-white/60"
+              )}
+            >
+              <CrownIcon size={11} />
+              Pro
+              <span className="hidden lg:inline text-white/30 font-normal text-[10px]">· Qualität</span>
+            </button>
+            <button
+              onClick={() => setSelectedModel("flash")}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[11px] font-medium transition-all min-h-[36px]",
+                selectedModel === "flash"
+                  ? "bg-[#1d4ed8]/20 text-[#60a5fa] border border-[#1d4ed8]/30"
+                  : "text-white/40 hover:text-white/60"
+              )}
+            >
+              <ZapIcon size={11} />
+              Flash
+              <span className="hidden lg:inline text-white/30 font-normal text-[10px]">· schnell</span>
+            </button>
+          </div>
+
+          {/* Resolution toggle */}
+          <div className="flex items-center rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden p-0.5 gap-0.5">
+            {(["2K", "4K"] as const).map((res) => (
+              <button
+                key={res}
+                onClick={() => setSelectedResolution(res)}
+                title={res === "2K" ? "2K – schneller" : "4K – höchste Qualität"}
+                className={cn(
+                  "px-2.5 py-2 rounded-lg text-[11px] font-medium transition-all min-h-[36px]",
+                  selectedResolution === res
+                    ? "bg-white/[0.1] text-white border border-white/[0.12]"
+                    : "text-white/40 hover:text-white/60"
+                )}
+              >
+                {res}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Right: smart button + error */}

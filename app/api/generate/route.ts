@@ -18,8 +18,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { imageItemId, imageBase64, mimeType, prompt, model: modelParam, aspectRatio } = await req.json();
+    const { imageItemId, imageBase64, mimeType, prompt, model: modelParam, aspectRatio, imageSize: imageSizeParam } = await req.json();
     const model = ALLOWED_IMAGE_MODELS.includes(modelParam) ? modelParam : IMAGE_MODEL_PRO;
+    const imageSize: "1K" | "2K" | "4K" = (["1K", "2K", "4K"] as const).includes(imageSizeParam) ? imageSizeParam : "2K";
     // aspectRatio is used for post-crop only – never passed to Gemini (would 4× generation time)
     const safeAspectRatio = typeof aspectRatio === "string" && /^\d+:\d+$/.test(aspectRatio) ? aspectRatio : null;
 
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
         .eq("id", imageItemId);
     }
 
-    let result = await editImageWithGemini(imageBase64, mimeType ?? "image/jpeg", prompt, "2K", model);
+    let result = await editImageWithGemini(imageBase64, mimeType ?? "image/jpeg", prompt, imageSize, model);
 
     // Post-crop to preserve input aspect ratio (fast <100ms, doesn't slow Gemini)
     if (safeAspectRatio) {

@@ -54,7 +54,8 @@ async function derivePromptForImage(
 async function processImage(
   img: ImageInput,
   savedPrompts: string[],
-  model: string = IMAGE_MODEL_PRO
+  model: string = IMAGE_MODEL_PRO,
+  imageSize: "1K" | "2K" | "4K" = "2K"
 ): Promise<
   | { imageItemId: string; resultBase64: string; mimeType: string; derivedPrompt: string; error?: undefined }
   | { imageItemId: string; error: string }
@@ -64,7 +65,7 @@ async function processImage(
     const derivedPrompt = await derivePromptForImage(img.imageBase64, img.mimeType, savedPrompts);
 
     // Step 2: edit the image with the selected model (no aspectRatio → fast 15s generation)
-    let result = await editImageWithGemini(img.imageBase64, img.mimeType, derivedPrompt, "2K", model);
+    let result = await editImageWithGemini(img.imageBase64, img.mimeType, derivedPrompt, imageSize, model);
 
     // Post-crop to preserve input aspect ratio (<100ms, doesn't slow Gemini)
     const safeRatio = typeof img.aspectRatio === "string" && /^\d+:\d+$/.test(img.aspectRatio) ? img.aspectRatio : null;
@@ -137,14 +138,16 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { images, savedPrompts, model: modelParam } = (await req.json()) as {
+    const { images, savedPrompts, model: modelParam, imageSize: imageSizeParam } = (await req.json()) as {
       images: ImageInput[];
       savedPrompts: string[];
       model?: string;
+      imageSize?: string;
     };
     const model = ALLOWED_IMAGE_MODELS.includes(modelParam as typeof ALLOWED_IMAGE_MODELS[number])
       ? modelParam!
       : IMAGE_MODEL_PRO;
+    const imageSize: "1K" | "2K" | "4K" = (["1K", "2K", "4K"] as const).includes(imageSizeParam as "1K" | "2K" | "4K") ? imageSizeParam as "1K" | "2K" | "4K" : "2K";
 
     if (!Array.isArray(images) || images.length === 0) {
       return NextResponse.json({ error: "images array is required" }, { status: 400 });
@@ -179,7 +182,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const results = await Promise.all(images.map((img) => processImage(img, savedPrompts, model)));
+    const results = await Promise.all(images.map((img) => processImage(img, savedPrompts, model, imageSize)));
 
     return NextResponse.json({ results });
   } catch (err) {
